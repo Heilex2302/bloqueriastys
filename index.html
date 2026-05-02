@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BloqueriaSys</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background: #f0f2f5; }
+
+    /* LOGIN */
+    #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #1a1a2e; }
+    .login-card { background: white; padding: 40px; border-radius: 14px; width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .login-logo { text-align: center; font-size: 28px; font-weight: bold; color: #1D9E75; margin-bottom: 6px; }
+    .login-sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 28px; }
+    .login-card input { width: 100%; padding: 11px 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .login-card button { width: 100%; padding: 12px; background: #1D9E75; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    .login-card button:hover { background: #0F6E56; }
+    .login-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #888; }
+    .login-toggle span { color: #1D9E75; cursor: pointer; font-weight: bold; }
+    .login-msg { text-align: center; margin-top: 12px; font-size: 13px; padding: 8px; border-radius: 6px; display: none; }
+    .login-msg.error { background: #fde8e8; color: #c0392b; }
+    .login-msg.success { background: #d4edda; color: #155724; }
+
+    /* APP */
+    #app-screen { display: none; }
+    .topbar { background: #1D9E75; padding: 14px 24px; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    .topbar button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .layout { display: flex; min-height: calc(100vh - 50px); }
+    .sidebar { width: 200px; background: #1a1a2e; padding: 20px 0; }
+    .nav-item { padding: 12px 20px; color: #aaa; cursor: pointer; font-size: 14px; }
+    .nav-item.active, .nav-item:hover { background: #16213e; color: #1D9E75; }
+    .main { flex: 1; padding: 24px; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    h2 { font-size: 18px; margin-bottom: 16px; color: #333; }
+    input, select { width: 100%; padding: 9px 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    button { padding: 10px 20px; background: #1D9E75; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #0F6E56; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #eee; }
+    td { padding: 10px; border-bottom: 1px solid #eee; }
+    .msg { padding: 10px; background: #d4edda; color: #155724; border-radius: 6px; margin-top: 10px; display: none; }
+    .user-email { font-size: 13px; opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🧱 BloqueriaSys</div>
+    <div class="login-sub">Sistema de gestión para bloquerías</div>
+    <input type="email" id="auth-email" placeholder="Correo electrónico" />
+    <input type="password" id="auth-password" placeholder="Contraseña" />
+    <button onclick="handleAuth()">Entrar</button>
+    <div class="login-toggle">
+      ¿No tienes cuenta? <span onclick="toggleMode()">Regístrate</span>
+    </div>
+    <div class="login-msg" id="auth-msg"></div>
+  </div>
+</div>
+
+<!-- PANTALLA PRINCIPAL -->
+<div id="app-screen">
+  <div class="topbar">
+    <span>🧱 BloqueriaSys</span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="user-email" id="user-email-label"></span>
+      <button onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="show('inventario',this)">📦 Inventario</div>
+      <div class="nav-item" onclick="show('ventas',this)">💰 Ventas</div>
+      <div class="nav-item" onclick="show('clientes',this)">👥 Clientes</div>
+      <div class="nav-item" onclick="show('gastos',this)">📊 Gastos</div>
+    </div>
+    <div class="main">
+
+      <!-- INVENTARIO -->
+      <div class="section active" id="inventario">
+        <div class="card">
+          <h2>Agregar producto</h2>
+          <input type="text" id="p-nombre" placeholder="Nombre (ej: Bloque 6x20)" />
+          <input type="number" id="p-precio" placeholder="Precio unitario (USD)" />
+          <input type="number" id="p-stock" placeholder="Stock inicial" />
+          <input type="number" id="p-minimo" placeholder="Stock mínimo de alerta" />
+          <button onclick="agregarProducto()">Guardar producto</button>
+          <div class="msg" id="msg-producto">✅ Producto guardado</div>
+        </div>
+        <div class="card">
+          <h2>Stock actual</h2>
+          <table><thead><tr><th>Nombre</th><th>Precio</th><th>Stock</th><th>Mínimo</th></tr></thead>
+          <tbody id="tabla-productos"><tr><td colspan="4">Cargando...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- VENTAS -->
+      <div class="section" id="ventas">
+        <div class="card">
+          <h2>Registrar venta</h2>
+          <select id="v-producto"><option>Cargando productos...</option></select>
+          <input type="number" id="v-cantidad" placeholder="Cantidad" />
+          <select id="v-pago">
+            <option value="efectivo">Efectivo USD</option>
+            <option value="transferencia">Transferencia Bs</option>
+            <option value="credito">A crédito</option>
+            <option value="pago_movil">Pago móvil</option>
+          </select>
+          <button onclick="registrarVenta()">Registrar venta</button>
+          <div class="msg" id="msg-venta">✅ Venta registrada</div>
+        </div>
+        <div class="card">
+          <h2>Historial de ventas</h2>
+          <table><thead><tr><th>Producto</th><th>Cantidad</th><th>Total</th><th>Pago</th><th>Fecha</th></tr></thead>
+          <tbody id="tabla-ventas"><tr><td colspan="5">Cargando...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- CLIENTES -->
+      <div class="section" id="clientes">
+        <div class="card">
+          <h2>Agregar cliente</h2>
+          <input type="text" id="c-nombre" placeholder="Nombre del cliente" />
+          <input type="text" id="c-telefono" placeholder="Teléfono" />
+          <input type="number" id="c-limite" placeholder="Límite de crédito (USD)" />
+          <button onclick="agregarCliente()">Guardar cliente</button>
+          <div class="msg" id="msg-cliente">✅ Cliente guardado</div>
+        </div>
+        <div class="card">
+          <h2>Lista de clientes</h2>
+          <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Límite</th><th>Deuda</th></tr></thead>
+          <tbody id="tabla-clientes"><tr><td colspan="4">Cargando...</td></tr></tbody></table>
+        </div>
+      </div>
+
+      <!-- GASTOS -->
+      <div class="section" id="gastos">
+        <div class="card">
+          <h2>Registrar gasto</h2>
+          <select id="g-concepto">
+            <option value="Materia prima">Materia prima</option>
+            <option value="Mano de obra">Mano de obra</option>
+            <option value="Servicios">Servicios (luz/agua)</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Transporte">Transporte</option>
+            <option value="Otro">Otro</option>
+          </select>
+          <input type="number" id="g-monto" placeholder="Monto (USD)" />
+          <input type="text" id="g-nota" placeholder="Nota (opcional)" />
+          <button onclick="agregarGasto()">Guardar gasto</button>
+          <div class="msg" id="msg-gasto">✅ Gasto guardado</div>
+        </div>
+        <div class="card">
+          <h2>Historial de gastos</h2>
+          <table><thead><tr><th>Concepto</th><th>Monto</th><th>Nota</th><th>Fecha</th></tr></thead>
+          <tbody id="tabla-gastos"><tr><td colspan="4">Cargando...</td></tr></tbody></table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://chrezsjjsbvmqsuyqiqh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Km4A7X3dFIH9DAc0x-2C3w_XA_5rMG-';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const API = 'http://localhost:3000';
+const BID = '00000000-0000-0000-0000-000000000001';
+
+let modoRegistro = false;
+
+function toggleMode() {
+  modoRegistro = !modoRegistro;
+  document.querySelector('.login-toggle').innerHTML = modoRegistro
+    ? '¿Ya tienes cuenta? <span onclick="toggleMode()">Inicia sesión</span>'
+    : '¿No tienes cuenta? <span onclick="toggleMode()">Regístrate</span>';
+  document.querySelector('.login-card button').textContent = modoRegistro ? 'Registrarse' : 'Entrar';
+}
+
+function showAuthMsg(msg, tipo) {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.className = `login-msg ${tipo}`;
+  el.style.display = 'block';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) { showAuthMsg('Completa todos los campos', 'error'); return; }
+
+  if (modoRegistro) {
+    const { error } = await sb.auth.signUp({ email, password });
+    if (error) { showAuthMsg(error.message, 'error'); return; }
+    document.querySelector('.login-card').innerHTML = `
+      <div style="text-align:center; padding: 10px 0;">
+        <div style="font-size:50px; margin-bottom:16px;">📧</div>
+        <div style="font-size:20px; font-weight:bold; color:#1D9E75; margin-bottom:10px;">¡Casi listo!</div>
+        <p style="color:#666; font-size:14px; margin-bottom:20px;">
+          Te enviamos un correo a <strong>${email}</strong>.<br>
+          Confírmalo y luego vuelve aquí para iniciar sesión.
+        </p>
+        <button onclick="location.reload()" style="width:100%; padding:12px; background:#1D9E75; color:white; border:none; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer;">
+          ← Ir a iniciar sesión
+        </button>
+      </div>
+    `;
+  } else {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { showAuthMsg('Correo o contraseña incorrectos', 'error'); return; }
+    entrarApp(data.user);
+  }
+}
+
+function entrarApp(user) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('user-email-label').textContent = user.email;
+  cargarProductos();
+}
+
+async function cerrarSesion() {
+  await sb.auth.signOut();
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+// Verificar si ya hay sesión activa
+sb.auth.getSession().then(({ data }) => {
+  if (data.session) entrarApp(data.session.user);
+});
+
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+  if(id==='inventario') cargarProductos();
+  if(id==='ventas') { cargarVentas(); cargarSelectProductos(); }
+  if(id==='clientes') cargarClientes();
+  if(id==='gastos') cargarGastos();
+}
+
+function showMsg(id) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+async function cargarProductos() {
+  const res = await fetch(`${API}/productos/${BID}`);
+  const data = await res.json();
+  const tb = document.getElementById('tabla-productos');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin productos aún</td></tr>'; return; }
+  tb.innerHTML = data.map(p => `<tr><td>${p.nombre}</td><td>$${p.precio}</td><td>${p.stock}</td><td>${p.stock_minimo}</td></tr>`).join('');
+}
+
+async function agregarProducto() {
+  await fetch(`${API}/productos`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ bloqueria_id:BID, nombre:document.getElementById('p-nombre').value,
+      precio:document.getElementById('p-precio').value, stock:document.getElementById('p-stock').value,
+      stock_minimo:document.getElementById('p-minimo').value }) });
+  showMsg('msg-producto'); cargarProductos();
+}
+
+async function cargarSelectProductos() {
+  const res = await fetch(`${API}/productos/${BID}`);
+  const data = await res.json();
+  document.getElementById('v-producto').innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}</option>`).join('');
+}
+
+async function cargarVentas() {
+  const res = await fetch(`${API}/ventas/${BID}`);
+  const data = await res.json();
+  const tb = document.getElementById('tabla-ventas');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="5">Sin ventas aún</td></tr>'; return; }
+  tb.innerHTML = data.map(v => `<tr><td>${v.producto_id}</td><td>${v.cantidad}</td><td>$${v.total}</td><td>${v.forma_pago}</td><td>${new Date(v.fecha).toLocaleDateString()}</td></tr>`).join('');
+}
+
+async function registrarVenta() {
+  const sel = document.getElementById('v-producto');
+  const precio = sel.options[sel.selectedIndex].dataset.precio;
+  const cantidad = document.getElementById('v-cantidad').value;
+  await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ bloqueria_id:BID, producto_id:sel.value, cantidad,
+      precio_unit:precio, total:(precio*cantidad).toFixed(2),
+      forma_pago:document.getElementById('v-pago').value }) });
+  showMsg('msg-venta'); cargarVentas();
+}
+
+async function cargarClientes() {
+  const res = await fetch(`${API}/clientes/${BID}`);
+  const data = await res.json();
+  const tb = document.getElementById('tabla-clientes');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin clientes aún</td></tr>'; return; }
+  tb.innerHTML = data.map(c => `<tr><td>${c.nombre}</td><td>${c.telefono}</td><td>$${c.limite_credito}</td><td>$${c.deuda_actual}</td></tr>`).join('');
+}
+
+async function agregarCliente() {
+  await fetch(`${API}/clientes`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ bloqueria_id:BID, nombre:document.getElementById('c-nombre').value,
+      telefono:document.getElementById('c-telefono').value,
+      limite_credito:document.getElementById('c-limite').value }) });
+  showMsg('msg-cliente'); cargarClientes();
+}
+
+async function cargarGastos() {
+  const res = await fetch(`${API}/gastos/${BID}`);
+  const data = await res.json();
+  const tb = document.getElementById('tabla-gastos');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin gastos aún</td></tr>'; return; }
+  tb.innerHTML = data.map(g => `<tr><td>${g.concepto}</td><td>$${g.monto}</td><td>${g.nota||'-'}</td><td>${new Date(g.fecha).toLocaleDateString()}</td></tr>`).join('');
+}
+
+async function agregarGasto() {
+  await fetch(`${API}/gastos`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ bloqueria_id:BID, concepto:document.getElementById('g-concepto').value,
+      monto:document.getElementById('g-monto').value, nota:document.getElementById('g-nota').value }) });
+  showMsg('msg-gasto'); cargarGastos();
+}
+</script>
+</body>
+</html>
