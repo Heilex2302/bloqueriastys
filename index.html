@@ -94,15 +94,15 @@
           <h2>Registrar venta</h2>
           <select id="v-producto"><option>Cargando productos...</option></select>
           <input type="number" id="v-cantidad" placeholder="Cantidad" />
-          <select id="v-pago" onchange="toggleCliente()">
+          <select id="v-pago">
             <option value="efectivo">Efectivo USD</option>
             <option value="transferencia">Transferencia Bs</option>
             <option value="credito">A crédito</option>
             <option value="pago_movil">Pago móvil</option>
           </select>
-          <div id="bloque-cliente" style="display:none;">
-            <select id="v-cliente"><option value="">-- Selecciona cliente --</option></select>
-          </div>
+          <select id="v-cliente">
+            <option value="">-- Cliente (opcional) --</option>
+          </select>
           <button onclick="registrarVenta()">Registrar venta</button>
           <div class="msg" id="msg-venta">✅ Venta registrada</div>
         </div>
@@ -161,6 +161,9 @@
 <script>
 const API = 'https://bloqueriastys.vercel.app/api';
 let SESSION = null;
+// Mapas para mostrar nombres en lugar de IDs
+let mapaProductos = {};
+let mapaClientes = {};
 
 function cargarSesion() {
   const raw = localStorage.getItem('bsys_session');
@@ -231,16 +234,13 @@ function showMsg(id) {
 }
 function getBID() { return SESSION.bloqueria_id; }
 
-// Mostrar/ocultar selector de cliente según forma de pago
-function toggleCliente() {
-  const pago = document.getElementById('v-pago').value;
-  document.getElementById('bloque-cliente').style.display = pago === 'credito' ? 'block' : 'none';
-}
-
 // ── INVENTARIO ───────────────────────────────────────────
 async function cargarProductos() {
   const res = await fetch(`${API}/productos/${getBID()}`);
   const data = await res.json();
+  // Guardar mapa id → nombre
+  mapaProductos = {};
+  data.forEach(p => mapaProductos[p.id] = p.nombre);
   const tb = document.getElementById('tabla-productos');
   if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin productos aún</td></tr>'; return; }
   tb.innerHTML = data.map(p => `<tr><td>${p.nombre}</td><td>$${p.precio}</td><td>${p.stock}</td><td>${p.stock_minimo}</td></tr>`).join('');
@@ -257,6 +257,8 @@ async function agregarProducto() {
 async function cargarSelectProductos() {
   const res = await fetch(`${API}/productos/${getBID()}`);
   const data = await res.json();
+  mapaProductos = {};
+  data.forEach(p => mapaProductos[p.id] = p.nombre);
   document.getElementById('v-producto').innerHTML = data.map(p =>
     `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}</option>`).join('');
 }
@@ -264,26 +266,35 @@ async function cargarSelectProductos() {
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
   const data = await res.json();
+  mapaClientes = {};
+  data.forEach(c => mapaClientes[c.id] = c.nombre);
   document.getElementById('v-cliente').innerHTML =
-    '<option value="">-- Selecciona cliente --</option>' +
+    '<option value="">-- Cliente (opcional) --</option>' +
     data.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 }
 
 async function cargarVentas() {
-  const res = await fetch(`${API}/ventas/${getBID()}`);
-  const data = await res.json();
-  // Cargar clientes para mostrar nombre en lugar de ID
-  const resC = await fetch(`${API}/clientes/${getBID()}`);
+  const [resV, resP, resC] = await Promise.all([
+    fetch(`${API}/ventas/${getBID()}`),
+    fetch(`${API}/productos/${getBID()}`),
+    fetch(`${API}/clientes/${getBID()}`)
+  ]);
+  const ventas = await resV.json();
+  const productos = await resP.json();
   const clientes = await resC.json();
-  const mapaClientes = {};
-  clientes.forEach(c => mapaClientes[c.id] = c.nombre);
+
+  // Construir mapas
+  const mP = {};
+  productos.forEach(p => mP[p.id] = p.nombre);
+  const mC = {};
+  clientes.forEach(c => mC[c.id] = c.nombre);
 
   const tb = document.getElementById('tabla-ventas');
-  if(!data.length) { tb.innerHTML = '<tr><td colspan="6">Sin ventas aún</td></tr>'; return; }
-  tb.innerHTML = data.map(v => `
+  if(!ventas.length) { tb.innerHTML = '<tr><td colspan="6">Sin ventas aún</td></tr>'; return; }
+  tb.innerHTML = ventas.map(v => `
     <tr>
-      <td>${v.producto_id}</td>
-      <td>${v.cliente_id ? (mapaClientes[v.cliente_id] || '-') : '-'}</td>
+      <td>${mP[v.producto_id] || v.producto_id}</td>
+      <td>${v.cliente_id ? (mC[v.cliente_id] || '-') : '-'}</td>
       <td>${v.cantidad}</td>
       <td>$${v.total}</td>
       <td>${v.forma_pago}</td>
@@ -303,20 +314,16 @@ async function registrarVenta() {
     alert('Selecciona un cliente para ventas a crédito'); return;
   }
 
-  // Registrar la venta
   await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      bloqueria_id: getBID(),
-      producto_id: sel.value,
-      cantidad,
-      precio_unit: precio,
-      total,
+      bloqueria_id: getBID(), producto_id: sel.value,
+      cantidad, precio_unit: precio, total,
       forma_pago: formaPago,
       cliente_id: clienteId || null
     })
   });
 
-  // Si es a crédito, sumar la deuda al cliente
+  // Si es crédito, sumar deuda al cliente
   if (formaPago === 'credito' && clienteId) {
     await fetch(`${API}/clientes/deuda`, {
       method: 'POST',
@@ -362,7 +369,6 @@ async function agregarCliente() {
 async function abonarDeuda(clienteId, deudaActual) {
   const monto = parseFloat(prompt(`Deuda actual: $${deudaActual}\n¿Cuánto abona el cliente?`));
   if (!monto || monto <= 0) return;
-  const nuevaDeuda = Math.max(0, deudaActual - monto).toFixed(2);
   await fetch(`${API}/clientes/deuda`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
