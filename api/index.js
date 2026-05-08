@@ -36,6 +36,23 @@ module.exports = async (req, res) => {
       username: usuario.username
     });
   }
+  
+// ---- ABONO / DEUDA DE CLIENTE ----
+if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {
+  const { cliente_id, monto } = req.body;
+  const { data: clienteData } = await supabase
+    .from('clientes')
+    .select('deuda_actual')
+    .eq('id', cliente_id)
+    .single();
+  const nuevaDeuda = Math.max(0, (clienteData.deuda_actual || 0) + parseFloat(monto));
+  const { error } = await supabase
+    .from('clientes')
+    .update({ deuda_actual: nuevaDeuda })
+    .eq('id', cliente_id);
+  if (error) return res.status(400).json({ error });
+  return res.json({ ok: true, deuda_actual: nuevaDeuda });
+}
 
   // ---- GET ----
   if (req.method === 'GET') {
