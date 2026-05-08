@@ -36,23 +36,23 @@ module.exports = async (req, res) => {
       username: usuario.username
     });
   }
-  
-// ---- ABONO / DEUDA DE CLIENTE ----
-if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {
-  const { cliente_id, monto } = req.body;
-  const { data: clienteData } = await supabase
-    .from('clientes')
-    .select('deuda_actual')
-    .eq('id', cliente_id)
-    .single();
-  const nuevaDeuda = Math.max(0, (clienteData.deuda_actual || 0) + parseFloat(monto));
-  const { error } = await supabase
-    .from('clientes')
-    .update({ deuda_actual: nuevaDeuda })
-    .eq('id', cliente_id);
-  if (error) return res.status(400).json({ error });
-  return res.json({ ok: true, deuda_actual: nuevaDeuda });
-}
+
+  // ---- ABONO / DEUDA DE CLIENTE ----
+  if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {
+    const { cliente_id, monto } = req.body;
+    const { data: clienteData } = await supabase
+      .from('clientes')
+      .select('deuda_actual')
+      .eq('id', cliente_id)
+      .single();
+    const nuevaDeuda = Math.max(0, (clienteData.deuda_actual || 0) + parseFloat(monto));
+    const { error } = await supabase
+      .from('clientes')
+      .update({ deuda_actual: nuevaDeuda })
+      .eq('id', cliente_id);
+    if (error) return res.status(400).json({ error });
+    return res.json({ ok: true, deuda_actual: nuevaDeuda });
+  }
 
   // ---- GET ----
   if (req.method === 'GET') {
@@ -66,6 +66,67 @@ if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {
 
   // ---- POST ----
   if (req.method === 'POST') {
+
+    // PRODUCTOS: si ya existe el mismo nombre, sumar stock
+    if (tabla === 'productos') {
+      const { bloqueria_id, nombre, precio, stock, stock_minimo } = req.body;
+
+      // Buscar si ya existe un producto con ese nombre
+      const { data: existe } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('bloqueria_id', bloqueria_id)
+        .ilike('nombre', nombre)
+        .single();
+
+      if (existe) {
+        // Ya existe → sumar stock
+        const nuevoStock = (existe.stock || 0) + parseInt(stock);
+        const { error } = await supabase
+          .from('productos')
+          .update({ stock: nuevoStock, precio: precio || existe.precio })
+          .eq('id', existe.id);
+        if (error) return res.status(400).json({ error });
+        return res.json({ ok: true, mensaje: 'Stock actualizado', stock: nuevoStock });
+      } else {
+        // No existe → crear nuevo
+        const { data, error } = await supabase
+          .from('productos')
+          .insert([req.body]);
+        if (error) return res.status(400).json({ error });
+        return res.json(data);
+      }
+    }
+
+    // VENTAS: restar stock al producto vendido
+    if (tabla === 'ventas') {
+      const { producto_id, cantidad } = req.body;
+
+      // Insertar la venta
+      const { data, error } = await supabase
+        .from('ventas')
+        .insert([req.body]);
+      if (error) return res.status(400).json({ error });
+
+      // Restar stock
+      const { data: prod } = await supabase
+        .from('productos')
+        .select('stock')
+        .eq('id', producto_id)
+        .single();
+
+      if (prod) {
+        const nuevoStock = Math.max(0, (prod.stock || 0) - parseInt(cantidad));
+        await supabase
+          .from('productos')
+          .update({ stock: nuevoStock })
+          .eq('id', producto_id);
+      }
+
+      return res.json(data);
+    }
+
+    // RESTO DE TABLAS (clientes, gastos)
     const { data, error } = await supabase
       .from(tabla)
       .insert([req.body]);
