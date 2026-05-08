@@ -4,12 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BloqueriaSys</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
     body { background: #f0f2f5; }
-
-    /* LOGIN */
     #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #1a1a2e; }
     .login-card { background: white; padding: 40px; border-radius: 14px; width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
     .login-logo { text-align: center; font-size: 28px; font-weight: bold; color: #1D9E75; margin-bottom: 6px; }
@@ -17,13 +14,8 @@
     .login-card input { width: 100%; padding: 11px 14px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
     .login-card button { width: 100%; padding: 12px; background: #1D9E75; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
     .login-card button:hover { background: #0F6E56; }
-    .login-toggle { text-align: center; margin-top: 16px; font-size: 13px; color: #888; }
-    .login-toggle span { color: #1D9E75; cursor: pointer; font-weight: bold; }
     .login-msg { text-align: center; margin-top: 12px; font-size: 13px; padding: 8px; border-radius: 6px; display: none; }
     .login-msg.error { background: #fde8e8; color: #c0392b; }
-    .login-msg.success { background: #d4edda; color: #155724; }
-
-    /* APP */
     #app-screen { display: none; }
     .topbar { background: #1D9E75; padding: 14px 24px; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
     .topbar button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
@@ -43,32 +35,27 @@
     th { background: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #eee; }
     td { padding: 10px; border-bottom: 1px solid #eee; }
     .msg { padding: 10px; background: #d4edda; color: #155724; border-radius: 6px; margin-top: 10px; display: none; }
-    .user-email { font-size: 13px; opacity: 0.85; }
+    .user-label { font-size: 13px; opacity: 0.85; }
   </style>
 </head>
 <body>
 
-<!-- PANTALLA DE LOGIN -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">🧱 BloqueriaSys</div>
     <div class="login-sub">Sistema de gestión para bloquerías</div>
-    <input type="email" id="auth-email" placeholder="Correo electrónico" />
-    <input type="password" id="auth-password" placeholder="Contraseña" />
-    <button onclick="handleAuth()">Entrar</button>
-    <div class="login-toggle">
-      ¿No tienes cuenta? <span onclick="toggleMode()">Regístrate</span>
-    </div>
+    <input type="text" id="auth-username" placeholder="Usuario" autocomplete="username" />
+    <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="current-password" />
+    <button onclick="handleLogin()">Entrar</button>
     <div class="login-msg" id="auth-msg"></div>
   </div>
 </div>
 
-<!-- PANTALLA PRINCIPAL -->
 <div id="app-screen">
   <div class="topbar">
     <span>🧱 BloqueriaSys</span>
     <div style="display:flex;align-items:center;gap:12px;">
-      <span class="user-email" id="user-email-label"></span>
+      <span class="user-label" id="user-label"></span>
       <button onclick="cerrarSesion()">Cerrar sesión</button>
     </div>
   </div>
@@ -81,7 +68,6 @@
     </div>
     <div class="main">
 
-      <!-- INVENTARIO -->
       <div class="section active" id="inventario">
         <div class="card">
           <h2>Agregar producto</h2>
@@ -99,7 +85,6 @@
         </div>
       </div>
 
-      <!-- VENTAS -->
       <div class="section" id="ventas">
         <div class="card">
           <h2>Registrar venta</h2>
@@ -121,7 +106,6 @@
         </div>
       </div>
 
-      <!-- CLIENTES -->
       <div class="section" id="clientes">
         <div class="card">
           <h2>Agregar cliente</h2>
@@ -138,7 +122,6 @@
         </div>
       </div>
 
-      <!-- GASTOS -->
       <div class="section" id="gastos">
         <div class="card">
           <h2>Registrar gasto</h2>
@@ -167,76 +150,68 @@
 </div>
 
 <script>
-const SUPABASE_URL = 'https://chrezsjjsbvmqsuyqiqh.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_Km4A7X3dFIH9DAc0x-2C3w_XA_5rMG-';
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const API = 'https://bloqueriastys.vercel.app/api';
-const BID = '00000000-0000-0000-0000-000000000001';
 
-let modoRegistro = false;
+let SESSION = null;
 
-function toggleMode() {
-  modoRegistro = !modoRegistro;
-  document.querySelector('.login-toggle').innerHTML = modoRegistro
-    ? '¿Ya tienes cuenta? <span onclick="toggleMode()">Inicia sesión</span>'
-    : '¿No tienes cuenta? <span onclick="toggleMode()">Regístrate</span>';
-  document.querySelector('.login-card button').textContent = modoRegistro ? 'Registrarse' : 'Entrar';
+function cargarSesion() {
+  const raw = localStorage.getItem('bsys_session');
+  if (raw) { try { SESSION = JSON.parse(raw); } catch(e) { SESSION = null; } }
 }
 
-function showAuthMsg(msg, tipo) {
+function guardarSesion(data) {
+  SESSION = data;
+  localStorage.setItem('bsys_session', JSON.stringify(data));
+}
+
+function limpiarSesion() {
+  SESSION = null;
+  localStorage.removeItem('bsys_session');
+}
+
+function showAuthMsg(msg) {
   const el = document.getElementById('auth-msg');
   el.textContent = msg;
-  el.className = `login-msg ${tipo}`;
+  el.className = 'login-msg error';
   el.style.display = 'block';
 }
 
-async function handleAuth() {
-  const email = document.getElementById('auth-email').value;
+async function handleLogin() {
+  const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
-  if (!email || !password) { showAuthMsg('Completa todos los campos', 'error'); return; }
-
-  if (modoRegistro) {
-    const { error } = await sb.auth.signUp({ email, password });
-    if (error) { showAuthMsg(error.message, 'error'); return; }
-    document.querySelector('.login-card').innerHTML = `
-      <div style="text-align:center; padding: 10px 0;">
-        <div style="font-size:50px; margin-bottom:16px;">📧</div>
-        <div style="font-size:20px; font-weight:bold; color:#1D9E75; margin-bottom:10px;">¡Casi listo!</div>
-        <p style="color:#666; font-size:14px; margin-bottom:20px;">
-          Te enviamos un correo a <strong>${email}</strong>.<br>
-          Confírmalo y luego vuelve aquí para iniciar sesión.
-        </p>
-        <button onclick="location.reload()" style="width:100%; padding:12px; background:#1D9E75; color:white; border:none; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer;">
-          ← Ir a iniciar sesión
-        </button>
-      </div>
-    `;
-  } else {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) { showAuthMsg('Correo o contraseña incorrectos', 'error'); return; }
-    entrarApp(data.user);
+  if (!username || !password) { showAuthMsg('Completa todos los campos'); return; }
+  try {
+    const res = await fetch(`${API}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) { showAuthMsg('Usuario o contraseña incorrectos'); return; }
+    guardarSesion(data);
+    entrarApp(data);
+  } catch(e) {
+    showAuthMsg('Error de conexión, intenta de nuevo');
   }
 }
 
-function entrarApp(user) {
+function entrarApp(session) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'block';
-  document.getElementById('user-email-label').textContent = user.email;
+  document.getElementById('user-label').textContent = session.nombre || session.username;
   cargarProductos();
 }
 
-async function cerrarSesion() {
-  await sb.auth.signOut();
+function cerrarSesion() {
+  limpiarSesion();
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
 }
 
-// Verificar si ya hay sesión activa
-sb.auth.getSession().then(({ data }) => {
-  if (data.session) entrarApp(data.session.user);
-});
+cargarSesion();
+if (SESSION) entrarApp(SESSION);
 
 function show(id, el) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -255,8 +230,10 @@ function showMsg(id) {
   setTimeout(() => el.style.display = 'none', 3000);
 }
 
+function getBID() { return SESSION.bloqueria_id; }
+
 async function cargarProductos() {
-  const res = await fetch(`${API}/productos/${BID}`);
+  const res = await fetch(`${API}/productos/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-productos');
   if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin productos aún</td></tr>'; return; }
@@ -265,20 +242,21 @@ async function cargarProductos() {
 
 async function agregarProducto() {
   await fetch(`${API}/productos`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:BID, nombre:document.getElementById('p-nombre').value,
+    body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('p-nombre').value,
       precio:document.getElementById('p-precio').value, stock:document.getElementById('p-stock').value,
       stock_minimo:document.getElementById('p-minimo').value }) });
   showMsg('msg-producto'); cargarProductos();
 }
 
 async function cargarSelectProductos() {
-  const res = await fetch(`${API}/productos/${BID}`);
+  const res = await fetch(`${API}/productos/${getBID()}`);
   const data = await res.json();
-  document.getElementById('v-producto').innerHTML = data.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}</option>`).join('');
+  document.getElementById('v-producto').innerHTML = data.map(p =>
+    `<option value="${p.id}" data-precio="${p.precio}">${p.nombre}</option>`).join('');
 }
 
 async function cargarVentas() {
-  const res = await fetch(`${API}/ventas/${BID}`);
+  const res = await fetch(`${API}/ventas/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-ventas');
   if(!data.length) { tb.innerHTML = '<tr><td colspan="5">Sin ventas aún</td></tr>'; return; }
@@ -290,14 +268,14 @@ async function registrarVenta() {
   const precio = sel.options[sel.selectedIndex].dataset.precio;
   const cantidad = document.getElementById('v-cantidad').value;
   await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:BID, producto_id:sel.value, cantidad,
+    body: JSON.stringify({ bloqueria_id:getBID(), producto_id:sel.value, cantidad,
       precio_unit:precio, total:(precio*cantidad).toFixed(2),
       forma_pago:document.getElementById('v-pago').value }) });
   showMsg('msg-venta'); cargarVentas();
 }
 
 async function cargarClientes() {
-  const res = await fetch(`${API}/clientes/${BID}`);
+  const res = await fetch(`${API}/clientes/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-clientes');
   if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin clientes aún</td></tr>'; return; }
@@ -306,14 +284,14 @@ async function cargarClientes() {
 
 async function agregarCliente() {
   await fetch(`${API}/clientes`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:BID, nombre:document.getElementById('c-nombre').value,
+    body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('c-nombre').value,
       telefono:document.getElementById('c-telefono').value,
       limite_credito:document.getElementById('c-limite').value }) });
   showMsg('msg-cliente'); cargarClientes();
 }
 
 async function cargarGastos() {
-  const res = await fetch(`${API}/gastos/${BID}`);
+  const res = await fetch(`${API}/gastos/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-gastos');
   if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin gastos aún</td></tr>'; return; }
@@ -322,7 +300,7 @@ async function cargarGastos() {
 
 async function agregarGasto() {
   await fetch(`${API}/gastos`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:BID, concepto:document.getElementById('g-concepto').value,
+    body: JSON.stringify({ bloqueria_id:getBID(), concepto:document.getElementById('g-concepto').value,
       monto:document.getElementById('g-monto').value, nota:document.getElementById('g-nota').value }) });
   showMsg('msg-gasto'); cargarGastos();
 }
