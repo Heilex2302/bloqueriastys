@@ -67,11 +67,10 @@ module.exports = async (req, res) => {
   // ---- POST ----
   if (req.method === 'POST') {
 
-    // PRODUCTOS: si ya existe el mismo nombre, sumar stock
+    // PRODUCTOS: si ya existe el mismo nombre sumar stock, si no crear nuevo
     if (tabla === 'productos') {
-      const { bloqueria_id, nombre, precio, stock, stock_minimo } = req.body;
+      const { bloqueria_id, nombre, precio, precio_bs, stock, stock_minimo } = req.body;
 
-      // Buscar si ya existe un producto con ese nombre
       const { data: existe } = await supabase
         .from('productos')
         .select('*')
@@ -80,11 +79,16 @@ module.exports = async (req, res) => {
         .single();
 
       if (existe) {
-        // Ya existe → sumar stock
+        // Ya existe → sumar stock y actualizar precios
         const nuevoStock = (existe.stock || 0) + parseInt(stock);
         const { error } = await supabase
           .from('productos')
-          .update({ stock: nuevoStock, precio: precio || existe.precio })
+          .update({
+            stock: nuevoStock,
+            precio: precio || existe.precio,
+            precio_bs: precio_bs || existe.precio_bs,
+            stock_minimo: stock_minimo || existe.stock_minimo
+          })
           .eq('id', existe.id);
         if (error) return res.status(400).json({ error });
         return res.json({ ok: true, mensaje: 'Stock actualizado', stock: nuevoStock });
@@ -102,13 +106,11 @@ module.exports = async (req, res) => {
     if (tabla === 'ventas') {
       const { producto_id, cantidad } = req.body;
 
-      // Insertar la venta
       const { data, error } = await supabase
         .from('ventas')
         .insert([req.body]);
       if (error) return res.status(400).json({ error });
 
-      // Restar stock
       const { data: prod } = await supabase
         .from('productos')
         .select('stock')
@@ -126,7 +128,7 @@ module.exports = async (req, res) => {
       return res.json(data);
     }
 
-    // RESTO DE TABLAS (clientes, gastos)
+    // RESTO (clientes, gastos)
     const { data, error } = await supabase
       .from(tabla)
       .insert([req.body]);
