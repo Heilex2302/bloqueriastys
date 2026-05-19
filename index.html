@@ -233,7 +233,16 @@ function show(id, el) {
   document.getElementById(id).classList.add('active');
   el.classList.add('active');
   if(id==='inventario') cargarProductos();
-  if(id==='ventas') { cargarVentas(); cargarSelectProductos(); cargarSelectClientes(); }
+  if(id==='ventas') {
+    // Limpiar campos de venta
+    document.getElementById('v-cantidad').value = '';
+    document.getElementById('v-pago').selectedIndex = 0;
+    document.getElementById('v-cliente').selectedIndex = 0;
+    document.getElementById('resumen-venta').style.display = 'none';
+    cargarVentas();
+    cargarSelectProductos();
+    cargarSelectClientes();
+  }
   if(id==='clientes') cargarClientes();
   if(id==='gastos') cargarGastos();
 }
