@@ -36,6 +36,30 @@ module.exports = async (req, res) => {
       username: usuario.username
     });
   }
+  
+  // ---- VERIFICAR PIN ADMIN ----
+if (tabla === 'admin' && parts[1] === 'verificar-pin' && req.method === 'POST') {
+  const { bloqueria_id, pin } = req.body;
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('admin_pin')
+    .eq('bloqueria_id', bloqueria_id)
+    .single();
+  if (error || !data) return res.status(400).json({ ok: false });
+  if (data.admin_pin !== pin) return res.status(401).json({ ok: false, error: 'PIN incorrecto' });
+  return res.json({ ok: true });
+}
+
+// ---- ELIMINAR REGISTRO ----
+if (tabla !== 'auth' && parts[1] === 'eliminar' && req.method === 'POST') {
+  const { id } = req.body;
+  const { error } = await supabase
+    .from(tabla)
+    .delete()
+    .eq('id', id);
+  if (error) return res.status(400).json({ error });
+  return res.json({ ok: true });
+}
 
   // ---- ABONO / DEUDA DE CLIENTE ----
   if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {

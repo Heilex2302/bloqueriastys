@@ -40,9 +40,39 @@
     .sin-deuda { color: #1D9E75; }
     .precio-divisa { color: #1D9E75; font-weight: bold; }
     .precio-bs { color: #e67e22; font-weight: bold; }
+    .btn-eliminar { background: #e74c3c; font-size: 12px; padding: 4px 10px; border-radius: 4px; }
+    .btn-eliminar:hover { background: #c0392b; }
+
+    /* MODAL PIN */
+    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-overlay.active { display: flex; }
+    .modal-box { background: white; padding: 32px; border-radius: 14px; width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center; }
+    .modal-box h3 { font-size: 18px; margin-bottom: 8px; color: #333; }
+    .modal-box p { font-size: 13px; color: #888; margin-bottom: 20px; }
+    .modal-box input { width: 100%; padding: 12px; font-size: 20px; text-align: center; letter-spacing: 8px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 12px; }
+    .modal-box input:focus { border-color: #1D9E75; outline: none; }
+    .modal-error { color: #c0392b; font-size: 13px; margin-bottom: 10px; display: none; }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns button { flex: 1; }
+    .btn-cancelar { background: #95a5a6; }
+    .btn-cancelar:hover { background: #7f8c8d; }
   </style>
 </head>
 <body>
+
+<!-- MODAL PIN ADMIN -->
+<div class="modal-overlay" id="modal-pin">
+  <div class="modal-box">
+    <h3>🔐 Acción restringida</h3>
+    <p>Ingresa el PIN de administrador para continuar</p>
+    <input type="password" id="pin-input" placeholder="••••" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+    <div class="modal-error" id="pin-error">PIN incorrecto, intenta de nuevo</div>
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+      <button onclick="confirmarPin()">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <div id="login-screen">
   <div class="login-card">
@@ -78,17 +108,17 @@
           <h2>Agregar / Reponer producto</h2>
           <input type="text" id="p-nombre" placeholder="Nombre (ej: Bloque 6x20)" />
           <input type="number" id="p-precio" placeholder="Precio en divisas USD (ej: 0.70)" step="0.01" />
-          <input type="number" id="p-precio-bs" placeholder="Precio en bolívares Bs (ej: 25.50)" step="0.01" />
+          <input type="number" id="p-precio-bs" placeholder="Precio en bolívares $ (ej: 0.90)" step="0.01" />
           <input type="number" id="p-stock" placeholder="Cantidad a agregar al stock" />
           <input type="number" id="p-minimo" placeholder="Stock mínimo de alerta" />
-          <button onclick="agregarProducto()">Guardar producto</button>
+          <button onclick="pedirPinParaAccion('guardarProducto')">Guardar producto</button>
           <div class="msg" id="msg-producto">✅ Producto guardado</div>
         </div>
         <div class="card">
           <h2>Stock actual</h2>
           <table>
-            <thead><tr><th>Nombre</th><th>Precio USD</th><th>Precio Bs</th><th>Stock</th><th>Mínimo</th></tr></thead>
-            <tbody id="tabla-productos"><tr><td colspan="5">Cargando...</td></tr></tbody>
+            <thead><tr><th>Nombre</th><th>Precio USD</th><th>Precio Bs ($)</th><th>Stock</th><th>Mínimo</th><th>Acción</th></tr></thead>
+            <tbody id="tabla-productos"><tr><td colspan="6">Cargando...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -117,8 +147,8 @@
         <div class="card">
           <h2>Historial de ventas</h2>
           <table>
-            <thead><tr><th>Producto</th><th>Cliente</th><th>Cantidad</th><th>Total USD</th><th>Total Bs ($)</th><th>Pago</th><th>Fecha</th></tr></thead>
-            <tbody id="tabla-ventas"><tr><td colspan="7">Cargando...</td></tr></tbody>
+            <thead><tr><th>Producto</th><th>Cliente</th><th>Cantidad</th><th>Total USD</th><th>Total Bs ($)</th><th>Pago</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <tbody id="tabla-ventas"><tr><td colspan="8">Cargando...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -161,8 +191,10 @@
         </div>
         <div class="card">
           <h2>Historial de gastos</h2>
-          <table><thead><tr><th>Concepto</th><th>Monto</th><th>Nota</th><th>Fecha</th></tr></thead>
-          <tbody id="tabla-gastos"><tr><td colspan="4">Cargando...</td></tr></tbody></table>
+          <table>
+            <thead><tr><th>Concepto</th><th>Monto</th><th>Nota</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <tbody id="tabla-gastos"><tr><td colspan="5">Cargando...</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -175,41 +207,29 @@ const API = 'https://bloqueriastys.vercel.app/api';
 let SESSION = null;
 let productosData = [];
 
+// ── SESIÓN ───────────────────────────────────────────────
 function cargarSesion() {
   const raw = localStorage.getItem('bsys_session');
   if (raw) { try { SESSION = JSON.parse(raw); } catch(e) { SESSION = null; } }
 }
-function guardarSesion(data) {
-  SESSION = data;
-  localStorage.setItem('bsys_session', JSON.stringify(data));
-}
-function limpiarSesion() {
-  SESSION = null;
-  localStorage.removeItem('bsys_session');
-}
+function guardarSesion(data) { SESSION = data; localStorage.setItem('bsys_session', JSON.stringify(data)); }
+function limpiarSesion() { SESSION = null; localStorage.removeItem('bsys_session'); }
+function getBID() { return SESSION.bloqueria_id; }
+
 function showAuthMsg(msg) {
   const el = document.getElementById('auth-msg');
-  el.textContent = msg;
-  el.className = 'login-msg error';
-  el.style.display = 'block';
+  el.textContent = msg; el.className = 'login-msg error'; el.style.display = 'block';
 }
 async function handleLogin() {
   const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
   if (!username || !password) { showAuthMsg('Completa todos los campos'); return; }
   try {
-    const res = await fetch(`${API}/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+    const res = await fetch(`${API}/auth`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
     const data = await res.json();
     if (!res.ok || !data.ok) { showAuthMsg('Usuario o contraseña incorrectos'); return; }
-    guardarSesion(data);
-    entrarApp(data);
-  } catch(e) {
-    showAuthMsg('Error de conexión, intenta de nuevo');
-  }
+    guardarSesion(data); entrarApp(data);
+  } catch(e) { showAuthMsg('Error de conexión, intenta de nuevo'); }
 }
 function entrarApp(session) {
   document.getElementById('login-screen').style.display = 'none';
@@ -227,6 +247,7 @@ function cerrarSesion() {
 cargarSesion();
 if (SESSION) entrarApp(SESSION);
 
+// ── NAVEGACIÓN ───────────────────────────────────────────
 function show(id, el) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -234,14 +255,11 @@ function show(id, el) {
   el.classList.add('active');
   if(id==='inventario') cargarProductos();
   if(id==='ventas') {
-    // Limpiar campos de venta
     document.getElementById('v-cantidad').value = '';
     document.getElementById('v-pago').selectedIndex = 0;
     document.getElementById('v-cliente').selectedIndex = 0;
     document.getElementById('resumen-venta').style.display = 'none';
-    cargarVentas();
-    cargarSelectProductos();
-    cargarSelectClientes();
+    cargarVentas(); cargarSelectProductos(); cargarSelectClientes();
   }
   if(id==='clientes') cargarClientes();
   if(id==='gastos') cargarGastos();
@@ -251,14 +269,71 @@ function showMsg(id) {
   el.style.display = 'block';
   setTimeout(() => el.style.display = 'none', 3000);
 }
-function getBID() { return SESSION.bloqueria_id; }
+
+// ── MODAL PIN ADMIN ──────────────────────────────────────
+let accionPendiente = null;
+
+function pedirPinParaAccion(accion, params) {
+  accionPendiente = { accion, params };
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').style.display = 'none';
+  document.getElementById('modal-pin').classList.add('active');
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+
+function cerrarModal() {
+  document.getElementById('modal-pin').classList.remove('active');
+  accionPendiente = null;
+}
+
+async function confirmarPin() {
+  const pin = document.getElementById('pin-input').value;
+  if (!pin) return;
+
+  const res = await fetch(`${API}/admin/verificar-pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bloqueria_id: getBID(), pin })
+  });
+  const data = await res.json();
+
+  if (!data.ok) {
+    document.getElementById('pin-error').style.display = 'block';
+    document.getElementById('pin-input').value = '';
+    return;
+  }
+
+  cerrarModal();
+
+  // Ejecutar la acción pendiente
+  const { accion, params } = accionPendiente;
+  if (accion === 'guardarProducto') await agregarProducto();
+  if (accion === 'eliminarProducto') await eliminarRegistro('productos', params.id, cargarProductos);
+  if (accion === 'eliminarVenta') await eliminarRegistro('ventas', params.id, cargarVentas);
+  if (accion === 'eliminarCliente') await eliminarRegistro('clientes', params.id, cargarClientes);
+  if (accion === 'eliminarGasto') await eliminarRegistro('gastos', params.id, cargarGastos);
+}
+
+// Cerrar modal con Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+
+// ── ELIMINAR GENÉRICO ────────────────────────────────────
+async function eliminarRegistro(tabla, id, callback) {
+  const res = await fetch(`${API}/${tabla}/eliminar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  });
+  const data = await res.json();
+  if (data.ok) callback();
+}
 
 // ── INVENTARIO ───────────────────────────────────────────
 async function cargarProductos() {
   const res = await fetch(`${API}/productos/${getBID()}`);
   productosData = await res.json();
   const tb = document.getElementById('tabla-productos');
-  if(!productosData.length) { tb.innerHTML = '<tr><td colspan="5">Sin productos aún</td></tr>'; return; }
+  if(!productosData.length) { tb.innerHTML = '<tr><td colspan="6">Sin productos aún</td></tr>'; return; }
   tb.innerHTML = productosData.map(p => `
     <tr>
       <td>${p.nombre}</td>
@@ -266,6 +341,7 @@ async function cargarProductos() {
       <td class="precio-divisa">$${p.precio_bs || 0}</td>
       <td>${p.stock}</td>
       <td>${p.stock_minimo}</td>
+      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarProducto', {id:'${p.id}'})">🗑 Eliminar</button></td>
     </tr>`).join('');
 }
 
@@ -280,7 +356,6 @@ async function agregarProducto() {
       stock_minimo: document.getElementById('p-minimo').value
     })
   });
-  // Limpiar campos
   document.getElementById('p-nombre').value = '';
   document.getElementById('p-precio').value = '';
   document.getElementById('p-precio-bs').value = '';
@@ -299,20 +374,14 @@ async function cargarSelectProductos() {
   ).join('');
   actualizarPrecioVenta();
 }
-
-function actualizarPrecioVenta() {
-  calcularTotal();
-}
-
+function actualizarPrecioVenta() { calcularTotal(); }
 function calcularTotal() {
   const sel = document.getElementById('v-producto');
   const cantidad = parseFloat(document.getElementById('v-cantidad').value) || 0;
   const pago = document.getElementById('v-pago').value;
   if (!sel.options[sel.selectedIndex]) return;
-
   const precioUSD = parseFloat(sel.options[sel.selectedIndex].dataset.precio) || 0;
   const precioBs = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs) || 0;
-
   if (cantidad > 0) {
     const totalUSD = (precioUSD * cantidad).toFixed(2);
     const totalBs = (precioBs * cantidad).toFixed(2);
@@ -328,7 +397,6 @@ function calcularTotal() {
     document.getElementById('resumen-venta').style.display = 'none';
   }
 }
-
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
   const data = await res.json();
@@ -336,7 +404,6 @@ async function cargarSelectClientes() {
     '<option value="">-- Cliente (opcional) --</option>' +
     data.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 }
-
 async function cargarVentas() {
   const [resV, resP, resC] = await Promise.all([
     fetch(`${API}/ventas/${getBID()}`),
@@ -346,14 +413,10 @@ async function cargarVentas() {
   const ventas = await resV.json();
   const productos = await resP.json();
   const clientes = await resC.json();
-
-  const mP = {};
-  productos.forEach(p => mP[p.id] = p);
-  const mC = {};
-  clientes.forEach(c => mC[c.id] = c.nombre);
-
+  const mP = {}; productos.forEach(p => mP[p.id] = p);
+  const mC = {}; clientes.forEach(c => mC[c.id] = c.nombre);
   const tb = document.getElementById('tabla-ventas');
-  if(!ventas.length) { tb.innerHTML = '<tr><td colspan="7">Sin ventas aún</td></tr>'; return; }
+  if(!ventas.length) { tb.innerHTML = '<tr><td colspan="8">Sin ventas aún</td></tr>'; return; }
   tb.innerHTML = ventas.map(v => {
     const prod = mP[v.producto_id];
     const totalBs = prod ? (prod.precio_bs * v.cantidad).toFixed(2) : '-';
@@ -365,10 +428,10 @@ async function cargarVentas() {
       <td class="precio-bs">$${totalBs}</td>
       <td>${v.forma_pago}</td>
       <td>${new Date(v.fecha).toLocaleDateString()}</td>
+      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarVenta', {id:'${v.id}'})">🗑 Eliminar</button></td>
     </tr>`;
   }).join('');
 }
-
 async function registrarVenta() {
   const sel = document.getElementById('v-producto');
   const precio = sel.options[sel.selectedIndex].dataset.precio;
@@ -376,33 +439,18 @@ async function registrarVenta() {
   const formaPago = document.getElementById('v-pago').value;
   const clienteId = document.getElementById('v-cliente').value;
   const total = (precio * cantidad).toFixed(2);
-
-  if (formaPago === 'credito' && !clienteId) {
-    alert('Selecciona un cliente para ventas a crédito'); return;
-  }
-
+  if (formaPago === 'credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
   await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      bloqueria_id: getBID(), producto_id: sel.value,
-      cantidad, precio_unit: precio, total,
-      forma_pago: formaPago,
-      cliente_id: clienteId || null
-    })
+    body: JSON.stringify({ bloqueria_id: getBID(), producto_id: sel.value, cantidad, precio_unit: precio, total, forma_pago: formaPago, cliente_id: clienteId || null })
   });
-
   if (formaPago === 'credito' && clienteId) {
-    await fetch(`${API}/clientes/deuda`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cliente_id: clienteId, monto: total })
-    });
+    await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ cliente_id: clienteId, monto: total }) });
   }
-
   showMsg('msg-venta');
   document.getElementById('v-cantidad').value = '';
   document.getElementById('resumen-venta').style.display = 'none';
-  cargarVentas();
-  cargarSelectProductos();
+  cargarVentas(); cargarSelectProductos();
 }
 
 // ── CLIENTES ─────────────────────────────────────────────
@@ -417,32 +465,26 @@ async function cargarClientes() {
       <td>${c.telefono}</td>
       <td>$${c.limite_credito || 0}</td>
       <td class="${c.deuda_actual > 0 ? 'deuda' : 'sin-deuda'}">$${c.deuda_actual || 0}</td>
-      <td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
         ${c.deuda_actual > 0
-          ? `<button style="background:#e74c3c;font-size:12px;padding:5px 10px" onclick="abonarDeuda('${c.id}', ${c.deuda_actual})">Registrar abono</button>`
+          ? `<button style="background:#e67e22;font-size:12px;padding:4px 10px" onclick="abonarDeuda('${c.id}', ${c.deuda_actual})">Registrar abono</button>`
           : '<span style="color:#1D9E75;font-size:12px">✅ Sin deuda</span>'
         }
+        <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarCliente', {id:'${c.id}'})">🗑 Eliminar</button>
       </td>
     </tr>`).join('');
 }
-
 async function agregarCliente() {
   await fetch(`${API}/clientes`, { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('c-nombre').value,
-      telefono:document.getElementById('c-telefono').value,
-      limite_credito:document.getElementById('c-limite').value,
-      deuda_actual: 0 }) });
+      telefono:document.getElementById('c-telefono').value, limite_credito:document.getElementById('c-limite').value, deuda_actual: 0 }) });
   showMsg('msg-cliente'); cargarClientes();
 }
-
 async function abonarDeuda(clienteId, deudaActual) {
   const monto = parseFloat(prompt(`Deuda actual: $${deudaActual}\n¿Cuánto abona el cliente?`));
   if (!monto || monto <= 0) return;
-  await fetch(`${API}/clientes/deuda`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cliente_id: clienteId, monto: -monto })
-  });
+  await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cliente_id: clienteId, monto: -monto }) });
   cargarClientes();
 }
 
@@ -451,8 +493,15 @@ async function cargarGastos() {
   const res = await fetch(`${API}/gastos/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-gastos');
-  if(!data.length) { tb.innerHTML = '<tr><td colspan="4">Sin gastos aún</td></tr>'; return; }
-  tb.innerHTML = data.map(g => `<tr><td>${g.concepto}</td><td>$${g.monto}</td><td>${g.nota||'-'}</td><td>${new Date(g.fecha).toLocaleDateString()}</td></tr>`).join('');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="5">Sin gastos aún</td></tr>'; return; }
+  tb.innerHTML = data.map(g => `
+    <tr>
+      <td>${g.concepto}</td>
+      <td>$${g.monto}</td>
+      <td>${g.nota||'-'}</td>
+      <td>${new Date(g.fecha).toLocaleDateString()}</td>
+      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarGasto', {id:'${g.id}'})">🗑 Eliminar</button></td>
+    </tr>`).join('');
 }
 async function agregarGasto() {
   await fetch(`${API}/gastos`, { method:'POST', headers:{'Content-Type':'application/json'},
