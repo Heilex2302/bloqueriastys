@@ -36,17 +36,16 @@ module.exports = async (req, res) => {
       username: usuario.username
     });
   }
-  
+
   // ---- VERIFICAR PIN ADMIN ----
 if (tabla === 'admin' && parts[1] === 'verificar-pin' && req.method === 'POST') {
   const { bloqueria_id, pin } = req.body;
   const { data, error } = await supabase
     .from('usuarios')
     .select('admin_pin')
-    .eq('bloqueria_id', bloqueria_id)
-    .single();
-  if (error || !data) return res.status(400).json({ ok: false });
-  if (data.admin_pin !== pin) return res.status(401).json({ ok: false, error: 'PIN incorrecto' });
+    .eq('bloqueria_id', bloqueria_id);
+  if (error || !data || data.length === 0) return res.status(400).json({ ok: false });
+  if (data[0].admin_pin !== pin) return res.status(401).json({ ok: false, error: 'PIN incorrecto' });
   return res.json({ ok: true });
 }
 
