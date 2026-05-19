@@ -311,9 +311,9 @@ function calcularTotal() {
     const texto = document.getElementById('resumen-texto');
     resumen.style.display = 'block';
     if (pago === 'transferencia') {
-      texto.innerHTML = `Total: <strong class="precio-bs">Bs ${totalBs}</strong>`;
+      texto.innerHTML = `Total: <strong class="precio-bs">$${totalBs}</strong>`;
     } else {
-      texto.innerHTML = `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">Bs ${totalBs}</strong>`;
+      texto.innerHTML = `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
     }
   } else {
     document.getElementById('resumen-venta').style.display = 'none';
@@ -353,7 +353,7 @@ async function cargarVentas() {
       <td>${v.cliente_id ? (mC[v.cliente_id] || '-') : '-'}</td>
       <td>${v.cantidad}</td>
       <td class="precio-divisa">$${v.total}</td>
-      <td class="precio-bs">Bs ${totalBs}</td>
+      <td class="precio-bs">$${totalBs}</td>
       <td>${v.forma_pago}</td>
       <td>${new Date(v.fecha).toLocaleDateString()}</td>
     </tr>`;
