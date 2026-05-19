@@ -254,7 +254,7 @@ async function cargarProductos() {
     <tr>
       <td>${p.nombre}</td>
       <td class="precio-divisa">$${p.precio}</td>
-      <td class="precio-bs">Bs ${p.precio_bs || 0}</td>
+      <td class="precio-divisa">$${p.precio_bs || 0}</td>
       <td>${p.stock}</td>
       <td>${p.stock_minimo}</td>
     </tr>`).join('');
@@ -271,6 +271,12 @@ async function agregarProducto() {
       stock_minimo: document.getElementById('p-minimo').value
     })
   });
+  // Limpiar campos
+  document.getElementById('p-nombre').value = '';
+  document.getElementById('p-precio').value = '';
+  document.getElementById('p-precio-bs').value = '';
+  document.getElementById('p-stock').value = '';
+  document.getElementById('p-minimo').value = '';
   showMsg('msg-producto');
   cargarProductos();
 }
