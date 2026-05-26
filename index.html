@@ -303,10 +303,15 @@ async function confirmarPin() {
     return;
   }
 
-  cerrarModal();
+  // Guardar acción ANTES de cerrar el modal
+  const accion = accionPendiente.accion;
+  const params = accionPendiente.params;
 
-  // Ejecutar la acción pendiente
-  const { accion, params } = accionPendiente;
+  // Cerrar modal
+  document.getElementById('modal-pin').classList.remove('active');
+  accionPendiente = null;
+
+  // Ejecutar la acción
   if (accion === 'guardarProducto') await agregarProducto();
   if (accion === 'eliminarProducto') await eliminarRegistro('productos', params.id, cargarProductos);
   if (accion === 'eliminarVenta') await eliminarRegistro('ventas', params.id, cargarVentas);
