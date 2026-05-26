@@ -46,6 +46,28 @@
     .btn-editar:hover { background: #2980b9; }
     .acciones { display: flex; gap: 4px; flex-wrap: wrap; }
 
+    /* DASHBOARD */
+    .periodo-btns { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .periodo-btn { padding: 8px 16px; border-radius: 20px; font-size: 13px; background: #f0f2f5; color: #555; border: none; cursor: pointer; }
+    .periodo-btn.active { background: #1D9E75; color: white; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .kpi-card { background: white; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; }
+    .kpi-card .kpi-icon { font-size: 28px; margin-bottom: 6px; }
+    .kpi-card .kpi-valor { font-size: 22px; font-weight: bold; margin-bottom: 4px; }
+    .kpi-card .kpi-label { font-size: 12px; color: #888; }
+    .kpi-verde { color: #1D9E75; }
+    .kpi-rojo { color: #e74c3c; }
+    .kpi-azul { color: #3498db; }
+    .kpi-naranja { color: #e67e22; }
+    .kpi-morado { color: #9b59b6; }
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .dash-grid { grid-template-columns: 1fr; } }
+    .stock-alerta { color: #e74c3c; font-weight: bold; }
+    .bar-container { margin: 6px 0; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
+    .bar { height: 10px; border-radius: 5px; background: #1D9E75; }
+    .bar.rojo { background: #e74c3c; }
+
     /* MODAL PIN */
     .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
     .modal-overlay.active { display: flex; }
@@ -59,11 +81,8 @@
     .modal-btns button { flex: 1; }
     .btn-cancelar { background: #95a5a6; }
     .btn-cancelar:hover { background: #7f8c8d; }
-
-    /* MODAL EDITAR */
     .modal-edit-box { background: white; padding: 28px; border-radius: 14px; width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: left; max-height: 90vh; overflow-y: auto; }
     .modal-edit-box h3 { font-size: 18px; margin-bottom: 16px; color: #333; }
-    .modal-edit-box input, .modal-edit-box select { margin-bottom: 10px; }
     .modal-edit-box label { font-size: 12px; color: #666; margin-bottom: 4px; display: block; }
   </style>
 </head>
@@ -120,6 +139,7 @@
       <div class="nav-item" onclick="show('ventas',this)">💰 Ventas</div>
       <div class="nav-item" onclick="show('clientes',this)">👥 Clientes</div>
       <div class="nav-item" onclick="show('gastos',this)">📊 Gastos</div>
+      <div class="nav-item" onclick="show('resumen',this)">📈 Resumen</div>
     </div>
     <div class="main">
 
@@ -217,6 +237,63 @@
         </div>
       </div>
 
+      <!-- RESUMEN / DASHBOARD -->
+      <div class="section" id="resumen">
+        <div class="card">
+          <h2>📈 Resumen del negocio</h2>
+          <div class="periodo-btns">
+            <button class="periodo-btn active" onclick="setPeriodo('hoy', this)">Hoy</button>
+            <button class="periodo-btn" onclick="setPeriodo('semana', this)">Esta semana</button>
+            <button class="periodo-btn" onclick="setPeriodo('mes', this)">Este mes</button>
+            <button class="periodo-btn" onclick="setPeriodo('todo', this)">Todo</button>
+          </div>
+
+          <!-- KPIs -->
+          <div class="kpi-grid" id="kpi-grid">
+            <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-valor kpi-verde" id="kpi-ingresos">-</div><div class="kpi-label">Ingresos USD</div></div>
+            <div class="kpi-card"><div class="kpi-icon">💵</div><div class="kpi-valor kpi-naranja" id="kpi-ingresos-bs">-</div><div class="kpi-label">Ingresos Bs ($)</div></div>
+            <div class="kpi-card"><div class="kpi-icon">📉</div><div class="kpi-valor kpi-rojo" id="kpi-gastos">-</div><div class="kpi-label">Gastos USD</div></div>
+            <div class="kpi-card"><div class="kpi-icon">📊</div><div class="kpi-valor kpi-azul" id="kpi-ganancia">-</div><div class="kpi-label">Ganancia neta</div></div>
+            <div class="kpi-card"><div class="kpi-icon">🛒</div><div class="kpi-valor kpi-morado" id="kpi-num-ventas">-</div><div class="kpi-label">Nº de ventas</div></div>
+            <div class="kpi-card"><div class="kpi-icon">👥</div><div class="kpi-valor kpi-azul" id="kpi-clientes">-</div><div class="kpi-label">Clientes registrados</div></div>
+            <div class="kpi-card"><div class="kpi-icon">💳</div><div class="kpi-valor kpi-rojo" id="kpi-deuda-total">-</div><div class="kpi-label">Deuda total clientes</div></div>
+            <div class="kpi-card"><div class="kpi-icon">📦</div><div class="kpi-valor kpi-naranja" id="kpi-stock-alerta">-</div><div class="kpi-label">Productos en alerta</div></div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <!-- Ventas por forma de pago -->
+          <div class="card">
+            <h2>💳 Ventas por forma de pago</h2>
+            <div id="dash-pagos">Cargando...</div>
+          </div>
+
+          <!-- Ventas con/sin cliente -->
+          <div class="card">
+            <h2>👤 Ventas con/sin cliente</h2>
+            <div id="dash-clientes-venta">Cargando...</div>
+          </div>
+
+          <!-- Más vendidos -->
+          <div class="card">
+            <h2>🏆 Productos más vendidos</h2>
+            <div id="dash-mas-vendidos">Cargando...</div>
+          </div>
+
+          <!-- Menos vendidos -->
+          <div class="card">
+            <h2>📉 Productos menos vendidos</h2>
+            <div id="dash-menos-vendidos">Cargando...</div>
+          </div>
+
+          <!-- Stock en alerta -->
+          <div class="card" style="grid-column: span 2;">
+            <h2>⚠️ Stock llegando al mínimo</h2>
+            <div id="dash-stock-alerta">Cargando...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -227,7 +304,8 @@ let SESSION = null;
 let productosData = [];
 let clientesData = [];
 let accionPendiente = null;
-let editPendiente = null; // { tabla, id, datos }
+let editPendiente = null;
+let periodoActual = 'hoy';
 
 // ── SESIÓN ───────────────────────────────────────────────
 function cargarSesion() {
@@ -285,11 +363,128 @@ function show(id, el) {
   }
   if(id==='clientes') cargarClientes();
   if(id==='gastos') cargarGastos();
+  if(id==='resumen') cargarResumen();
 }
 function showMsg(id) {
   const el = document.getElementById(id);
   el.style.display = 'block';
   setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// ── DASHBOARD ────────────────────────────────────────────
+function setPeriodo(p, btn) {
+  periodoActual = p;
+  document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  cargarResumen();
+}
+
+function filtrarPorPeriodo(items, campoFecha) {
+  const ahora = new Date();
+  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  const semana = new Date(hoy); semana.setDate(hoy.getDate() - hoy.getDay());
+  const mes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  return items.filter(i => {
+    const f = new Date(i[campoFecha]);
+    if (periodoActual === 'hoy') return f >= hoy;
+    if (periodoActual === 'semana') return f >= semana;
+    if (periodoActual === 'mes') return f >= mes;
+    return true;
+  });
+}
+
+function barras(items, maxVal) {
+  return items.map(item => {
+    const pct = maxVal > 0 ? Math.round((item.valor / maxVal) * 100) : 0;
+    return `<div class="bar-container">
+      <div class="bar-label"><span>${item.nombre}</span><span><strong>${item.display}</strong></span></div>
+      <div class="bar" style="width:${pct}%"></div>
+    </div>`;
+  }).join('');
+}
+
+async function cargarResumen() {
+  const [resV, resP, resC, resG] = await Promise.all([
+    fetch(`${API}/ventas/${getBID()}`),
+    fetch(`${API}/productos/${getBID()}`),
+    fetch(`${API}/clientes/${getBID()}`),
+    fetch(`${API}/gastos/${getBID()}`)
+  ]);
+  const ventasTodas = await resV.json();
+  const productos = await resP.json();
+  const clientes = await resC.json();
+  const gastosTodos = await resG.json();
+
+  const mP = {}; productos.forEach(p => mP[p.id] = p);
+
+  const ventas = filtrarPorPeriodo(ventasTodas, 'fecha');
+  const gastos = filtrarPorPeriodo(gastosTodos, 'fecha');
+
+  // KPIs
+  const ingresosUSD = ventas.filter(v => v.forma_pago !== 'transferencia').reduce((s, v) => s + parseFloat(v.total||0), 0);
+  const ingresosBs = ventas.filter(v => v.forma_pago === 'transferencia').reduce((s, v) => {
+    const p = mP[v.producto_id];
+    return s + (p ? p.precio_bs * v.cantidad : 0);
+  }, 0);
+  const totalGastos = gastos.reduce((s, g) => s + parseFloat(g.monto||0), 0);
+  const ganancia = ingresosUSD - totalGastos;
+  const deudaTotal = clientes.reduce((s, c) => s + parseFloat(c.deuda_actual||0), 0);
+  const enAlerta = productos.filter(p => p.stock <= p.stock_minimo).length;
+
+  document.getElementById('kpi-ingresos').textContent = `$${ingresosUSD.toFixed(2)}`;
+  document.getElementById('kpi-ingresos-bs').textContent = `$${ingresosBs.toFixed(2)}`;
+  document.getElementById('kpi-gastos').textContent = `$${totalGastos.toFixed(2)}`;
+  document.getElementById('kpi-ganancia').textContent = `$${ganancia.toFixed(2)}`;
+  document.getElementById('kpi-ganancia').className = `kpi-valor ${ganancia >= 0 ? 'kpi-verde' : 'kpi-rojo'}`;
+  document.getElementById('kpi-num-ventas').textContent = ventas.length;
+  document.getElementById('kpi-clientes').textContent = clientes.length;
+  document.getElementById('kpi-deuda-total').textContent = `$${deudaTotal.toFixed(2)}`;
+  document.getElementById('kpi-stock-alerta').textContent = enAlerta;
+
+  // Ventas por forma de pago
+  const pagos = {};
+  ventas.forEach(v => { pagos[v.forma_pago] = (pagos[v.forma_pago]||0) + parseFloat(v.total||0); });
+  const nombresPago = { efectivo:'Efectivo USD', transferencia:'Transferencia Bs', credito:'A crédito', pago_movil:'Pago móvil' };
+  const pagoItems = Object.entries(pagos).map(([k,v]) => ({ nombre: nombresPago[k]||k, valor: v, display: `$${v.toFixed(2)}` })).sort((a,b) => b.valor-a.valor);
+  const maxPago = pagoItems[0]?.valor || 1;
+  document.getElementById('dash-pagos').innerHTML = pagoItems.length ? barras(pagoItems, maxPago) : '<p style="color:#888;font-size:13px">Sin datos</p>';
+
+  // Ventas con/sin cliente
+  const conCliente = ventas.filter(v => v.cliente_id).length;
+  const sinCliente = ventas.length - conCliente;
+  const totalV = ventas.length || 1;
+  document.getElementById('dash-clientes-venta').innerHTML = `
+    <div class="bar-container">
+      <div class="bar-label"><span>Con cliente registrado</span><span><strong>${conCliente} ventas</strong></span></div>
+      <div class="bar" style="width:${Math.round(conCliente/totalV*100)}%"></div>
+    </div>
+    <div class="bar-container">
+      <div class="bar-label"><span>Sin cliente registrado</span><span><strong>${sinCliente} ventas</strong></span></div>
+      <div class="bar rojo" style="width:${Math.round(sinCliente/totalV*100)}%"></div>
+    </div>`;
+
+  // Más y menos vendidos
+  const vendidos = {};
+  ventas.forEach(v => { vendidos[v.producto_id] = (vendidos[v.producto_id]||0) + parseInt(v.cantidad||0); });
+  const vendidosArr = Object.entries(vendidos).map(([id, qty]) => ({
+    nombre: mP[id]?.nombre || 'Desconocido', valor: qty, display: `${qty} unidades`
+  })).sort((a,b) => b.valor-a.valor);
+
+  const maxVend = vendidosArr[0]?.valor || 1;
+  document.getElementById('dash-mas-vendidos').innerHTML = vendidosArr.length
+    ? barras(vendidosArr.slice(0,5), maxVend)
+    : '<p style="color:#888;font-size:13px">Sin datos</p>';
+  document.getElementById('dash-menos-vendidos').innerHTML = vendidosArr.length
+    ? barras([...vendidosArr].reverse().slice(0,5), maxVend)
+    : '<p style="color:#888;font-size:13px">Sin datos</p>';
+
+  // Stock en alerta
+  const alertas = productos.filter(p => p.stock <= p.stock_minimo);
+  document.getElementById('dash-stock-alerta').innerHTML = alertas.length
+    ? `<table><thead><tr><th>Producto</th><th>Stock actual</th><th>Stock mínimo</th></tr></thead><tbody>
+        ${alertas.map(p => `<tr><td>${p.nombre}</td><td class="stock-alerta">${p.stock}</td><td>${p.stock_minimo}</td></tr>`).join('')}
+       </tbody></table>`
+    : '<p style="color:#1D9E75;font-size:13px">✅ Todo el inventario está bien abastecido</p>';
 }
 
 // ── MODAL PIN ────────────────────────────────────────────
@@ -308,7 +503,7 @@ async function confirmarPin() {
   const pin = document.getElementById('pin-input').value;
   if (!pin) return;
   const res = await fetch(`${API}/admin/verificar-pin`, {
-    method: 'POST', headers: {'Content-Type':'application/json'},
+    method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ bloqueria_id: getBID(), pin })
   });
   const data = await res.json();
@@ -321,7 +516,6 @@ async function confirmarPin() {
   const params = accionPendiente.params;
   document.getElementById('modal-pin').classList.remove('active');
   accionPendiente = null;
-
   if (accion === 'guardarProducto') await agregarProducto();
   if (accion === 'eliminarProducto') await eliminarRegistro('productos', params.id, cargarProductos);
   if (accion === 'eliminarVenta') await eliminarRegistro('ventas', params.id, cargarVentas);
@@ -339,25 +533,21 @@ function abrirModalEditar(tipo, datos) {
   editPendiente = { tipo, datos };
   const campos = document.getElementById('edit-campos');
   const titulo = document.getElementById('edit-titulo');
-
   if (tipo === 'producto') {
     titulo.textContent = '✏️ Editar producto';
     campos.innerHTML = `
       <label>Nombre</label><input id="e-nombre" value="${datos.nombre}" />
       <label>Precio USD</label><input type="number" id="e-precio" step="0.01" value="${datos.precio}" />
-      <label>Precio Bs ($)</label><input type="number" id="e-precio-bs" step="0.01" value="${datos.precio_bs || 0}" />
+      <label>Precio Bs ($)</label><input type="number" id="e-precio-bs" step="0.01" value="${datos.precio_bs||0}" />
       <label>Stock</label><input type="number" id="e-stock" value="${datos.stock}" />
       <label>Stock mínimo</label><input type="number" id="e-minimo" value="${datos.stock_minimo}" />`;
   }
   if (tipo === 'venta') {
     titulo.textContent = '✏️ Editar venta';
-    const optsProductos = productosData.map(p => `<option value="${p.id}" ${p.id===datos.producto_id?'selected':''}>${p.nombre}</option>`).join('');
-    const optsClientes = [
-      `<option value="">-- Sin cliente --</option>`,
-      ...clientesData.map(c => `<option value="${c.id}" ${c.id===datos.cliente_id?'selected':''}>${c.nombre}</option>`)
-    ].join('');
+    const optsP = productosData.map(p => `<option value="${p.id}" ${p.id===datos.producto_id?'selected':''}>${p.nombre}</option>`).join('');
+    const optsC = [`<option value="">-- Sin cliente --</option>`, ...clientesData.map(c => `<option value="${c.id}" ${c.id===datos.cliente_id?'selected':''}>${c.nombre}</option>`)].join('');
     campos.innerHTML = `
-      <label>Producto</label><select id="e-producto">${optsProductos}</select>
+      <label>Producto</label><select id="e-producto">${optsP}</select>
       <label>Cantidad</label><input type="number" id="e-cantidad" value="${datos.cantidad}" />
       <label>Forma de pago</label>
       <select id="e-pago">
@@ -366,16 +556,16 @@ function abrirModalEditar(tipo, datos) {
         <option value="credito" ${datos.forma_pago==='credito'?'selected':''}>A crédito</option>
         <option value="pago_movil" ${datos.forma_pago==='pago_movil'?'selected':''}>Pago móvil</option>
       </select>
-      <label>Cliente</label><select id="e-cliente">${optsClientes}</select>
+      <label>Cliente</label><select id="e-cliente">${optsC}</select>
       <label>Total USD</label><input type="number" id="e-total" step="0.01" value="${datos.total}" />`;
   }
   if (tipo === 'cliente') {
     titulo.textContent = '✏️ Editar cliente';
     campos.innerHTML = `
       <label>Nombre</label><input id="e-cnombre" value="${datos.nombre}" />
-      <label>Teléfono</label><input id="e-ctelefono" value="${datos.telefono || ''}" />
-      <label>Límite de crédito ($)</label><input type="number" id="e-climit" step="0.01" value="${datos.limite_credito || 0}" />
-      <label>Deuda actual ($)</label><input type="number" id="e-cdeuda" step="0.01" value="${datos.deuda_actual || 0}" />`;
+      <label>Teléfono</label><input id="e-ctelefono" value="${datos.telefono||''}" />
+      <label>Límite crédito ($)</label><input type="number" id="e-climit" step="0.01" value="${datos.limite_credito||0}" />
+      <label>Deuda actual ($)</label><input type="number" id="e-cdeuda" step="0.01" value="${datos.deuda_actual||0}" />`;
   }
   if (tipo === 'gasto') {
     titulo.textContent = '✏️ Editar gasto';
@@ -390,64 +580,23 @@ function abrirModalEditar(tipo, datos) {
         <option value="Otro" ${datos.concepto==='Otro'?'selected':''}>Otro</option>
       </select>
       <label>Monto ($)</label><input type="number" id="e-gmonto" step="0.01" value="${datos.monto}" />
-      <label>Nota</label><input id="e-gnota" value="${datos.nota || ''}" />`;
+      <label>Nota</label><input id="e-gnota" value="${datos.nota||''}" />`;
   }
-
   document.getElementById('modal-editar').classList.add('active');
 }
-
 function cerrarModalEditar() {
   document.getElementById('modal-editar').classList.remove('active');
   editPendiente = null;
 }
-
 async function guardarEdicion() {
   const { tipo, datos } = editPendiente;
   let body = {};
-
-  if (tipo === 'producto') {
-    body = {
-      nombre: document.getElementById('e-nombre').value,
-      precio: document.getElementById('e-precio').value,
-      precio_bs: document.getElementById('e-precio-bs').value,
-      stock: document.getElementById('e-stock').value,
-      stock_minimo: document.getElementById('e-minimo').value
-    };
-  }
-  if (tipo === 'venta') {
-    body = {
-      producto_id: document.getElementById('e-producto').value,
-      cantidad: document.getElementById('e-cantidad').value,
-      forma_pago: document.getElementById('e-pago').value,
-      cliente_id: document.getElementById('e-cliente').value || null,
-      total: document.getElementById('e-total').value
-    };
-  }
-  if (tipo === 'cliente') {
-    body = {
-      nombre: document.getElementById('e-cnombre').value,
-      telefono: document.getElementById('e-ctelefono').value,
-      limite_credito: document.getElementById('e-climit').value,
-      deuda_actual: document.getElementById('e-cdeuda').value
-    };
-  }
-  if (tipo === 'gasto') {
-    body = {
-      concepto: document.getElementById('e-gconcepto').value,
-      monto: document.getElementById('e-gmonto').value,
-      nota: document.getElementById('e-gnota').value
-    };
-  }
-
+  if (tipo === 'producto') body = { nombre: document.getElementById('e-nombre').value, precio: document.getElementById('e-precio').value, precio_bs: document.getElementById('e-precio-bs').value, stock: document.getElementById('e-stock').value, stock_minimo: document.getElementById('e-minimo').value };
+  if (tipo === 'venta') body = { producto_id: document.getElementById('e-producto').value, cantidad: document.getElementById('e-cantidad').value, forma_pago: document.getElementById('e-pago').value, cliente_id: document.getElementById('e-cliente').value||null, total: document.getElementById('e-total').value };
+  if (tipo === 'cliente') body = { nombre: document.getElementById('e-cnombre').value, telefono: document.getElementById('e-ctelefono').value, limite_credito: document.getElementById('e-climit').value, deuda_actual: document.getElementById('e-cdeuda').value };
+  if (tipo === 'gasto') body = { concepto: document.getElementById('e-gconcepto').value, monto: document.getElementById('e-gmonto').value, nota: document.getElementById('e-gnota').value };
   const tablaMap = { producto:'productos', venta:'ventas', cliente:'clientes', gasto:'gastos' };
-  const tabla = tablaMap[tipo];
-
-  await fetch(`${API}/${tabla}/editar`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: datos.id, ...body })
-  });
-
+  await fetch(`${API}/${tablaMap[tipo]}/editar`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: datos.id, ...body }) });
   cerrarModalEditar();
   if (tipo === 'producto') cargarProductos();
   if (tipo === 'venta') cargarVentas();
@@ -455,11 +604,9 @@ async function guardarEdicion() {
   if (tipo === 'gasto') cargarGastos();
 }
 
-// ── ELIMINAR GENÉRICO ────────────────────────────────────
+// ── ELIMINAR ─────────────────────────────────────────────
 async function eliminarRegistro(tabla, id, callback) {
-  const res = await fetch(`${API}/${tabla}/eliminar`, {
-    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id })
-  });
+  const res = await fetch(`${API}/${tabla}/eliminar`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id }) });
   const data = await res.json();
   if (data.ok) callback();
 }
@@ -474,7 +621,7 @@ async function cargarProductos() {
     <tr>
       <td>${p.nombre}</td>
       <td class="precio-divisa">$${p.precio}</td>
-      <td class="precio-divisa">$${p.precio_bs || 0}</td>
+      <td class="precio-divisa">$${p.precio_bs||0}</td>
       <td>${p.stock}</td>
       <td>${p.stock_minimo}</td>
       <td class="acciones">
@@ -485,14 +632,8 @@ async function cargarProductos() {
 }
 async function agregarProducto() {
   await fetch(`${API}/productos`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id: getBID(), nombre: document.getElementById('p-nombre').value,
-      precio: document.getElementById('p-precio').value, precio_bs: document.getElementById('p-precio-bs').value,
-      stock: document.getElementById('p-stock').value, stock_minimo: document.getElementById('p-minimo').value }) });
-  document.getElementById('p-nombre').value = '';
-  document.getElementById('p-precio').value = '';
-  document.getElementById('p-precio-bs').value = '';
-  document.getElementById('p-stock').value = '';
-  document.getElementById('p-minimo').value = '';
+    body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('p-nombre').value, precio:document.getElementById('p-precio').value, precio_bs:document.getElementById('p-precio-bs').value, stock:document.getElementById('p-stock').value, stock_minimo:document.getElementById('p-minimo').value }) });
+  ['p-nombre','p-precio','p-precio-bs','p-stock','p-minimo'].forEach(id => document.getElementById(id).value = '');
   showMsg('msg-producto'); cargarProductos();
 }
 
@@ -507,58 +648,44 @@ async function cargarSelectProductos() {
 function actualizarPrecioVenta() { calcularTotal(); }
 function calcularTotal() {
   const sel = document.getElementById('v-producto');
-  const cantidad = parseFloat(document.getElementById('v-cantidad').value) || 0;
+  const cantidad = parseFloat(document.getElementById('v-cantidad').value)||0;
   const pago = document.getElementById('v-pago').value;
   if (!sel.options[sel.selectedIndex]) return;
-  const precioUSD = parseFloat(sel.options[sel.selectedIndex].dataset.precio) || 0;
-  const precioBs = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs) || 0;
+  const precioUSD = parseFloat(sel.options[sel.selectedIndex].dataset.precio)||0;
+  const precioBs = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs)||0;
   if (cantidad > 0) {
-    const totalUSD = (precioUSD * cantidad).toFixed(2);
-    const totalBs = (precioBs * cantidad).toFixed(2);
-    const resumen = document.getElementById('resumen-venta');
-    const texto = document.getElementById('resumen-texto');
-    resumen.style.display = 'block';
-    if (pago === 'transferencia') {
-      texto.innerHTML = `Total: <strong class="precio-bs">$${totalBs}</strong>`;
-    } else {
-      texto.innerHTML = `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
-    }
+    const totalUSD = (precioUSD*cantidad).toFixed(2);
+    const totalBs = (precioBs*cantidad).toFixed(2);
+    document.getElementById('resumen-venta').style.display = 'block';
+    document.getElementById('resumen-texto').innerHTML = pago==='transferencia'
+      ? `Total: <strong class="precio-bs">$${totalBs}</strong>`
+      : `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
   } else { document.getElementById('resumen-venta').style.display = 'none'; }
 }
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
   clientesData = await res.json();
-  document.getElementById('v-cliente').innerHTML =
-    '<option value="">-- Cliente (opcional) --</option>' +
+  document.getElementById('v-cliente').innerHTML = '<option value="">-- Cliente (opcional) --</option>' +
     clientesData.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 }
 async function cargarVentas() {
-  const [resV, resP, resC] = await Promise.all([
-    fetch(`${API}/ventas/${getBID()}`), fetch(`${API}/productos/${getBID()}`), fetch(`${API}/clientes/${getBID()}`)
-  ]);
-  const ventas = await resV.json();
-  const productos = await resP.json();
-  const clientes = await resC.json();
-  const mP = {}; productos.forEach(p => mP[p.id] = p);
-  const mC = {}; clientes.forEach(c => mC[c.id] = c.nombre);
+  const [resV, resP, resC] = await Promise.all([fetch(`${API}/ventas/${getBID()}`), fetch(`${API}/productos/${getBID()}`), fetch(`${API}/clientes/${getBID()}`)]);
+  const ventas = await resV.json(); const productos = await resP.json(); const clientes = await resC.json();
+  const mP = {}; productos.forEach(p => mP[p.id]=p);
+  const mC = {}; clientes.forEach(c => mC[c.id]=c.nombre);
   const tb = document.getElementById('tabla-ventas');
-  if(!ventas.length) { tb.innerHTML = '<tr><td colspan="8">Sin ventas aún</td></tr>'; return; }
+  if(!ventas.length) { tb.innerHTML='<tr><td colspan="8">Sin ventas aún</td></tr>'; return; }
   tb.innerHTML = ventas.map(v => {
     const prod = mP[v.producto_id];
-    const totalBs = prod ? (prod.precio_bs * v.cantidad).toFixed(2) : '-';
+    const totalBs = prod ? (prod.precio_bs*v.cantidad).toFixed(2) : '-';
     return `<tr>
-      <td>${prod ? prod.nombre : '-'}</td>
-      <td>${v.cliente_id ? (mC[v.cliente_id]||'-') : '-'}</td>
-      <td>${v.cantidad}</td>
-      <td class="precio-divisa">$${v.total}</td>
-      <td class="precio-bs">$${totalBs}</td>
-      <td>${v.forma_pago}</td>
-      <td>${new Date(v.fecha).toLocaleDateString()}</td>
+      <td>${prod?prod.nombre:'-'}</td><td>${v.cliente_id?(mC[v.cliente_id]||'-'):'-'}</td>
+      <td>${v.cantidad}</td><td class="precio-divisa">$${v.total}</td><td class="precio-bs">$${totalBs}</td>
+      <td>${v.forma_pago}</td><td>${new Date(v.fecha).toLocaleDateString()}</td>
       <td class="acciones">
         <button class="btn-editar" onclick='pedirPinParaAccion("editarVenta", ${JSON.stringify(v)})'>✏️ Editar</button>
         <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarVenta', {id:'${v.id}'})">🗑 Eliminar</button>
-      </td>
-    </tr>`;
+      </td></tr>`;
   }).join('');
 }
 async function registrarVenta() {
@@ -567,13 +694,12 @@ async function registrarVenta() {
   const cantidad = document.getElementById('v-cantidad').value;
   const formaPago = document.getElementById('v-pago').value;
   const clienteId = document.getElementById('v-cliente').value;
-  const total = (precio * cantidad).toFixed(2);
-  if (formaPago === 'credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
+  const total = (precio*cantidad).toFixed(2);
+  if (formaPago==='credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
   await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id: getBID(), producto_id: sel.value, cantidad, precio_unit: precio, total, forma_pago: formaPago, cliente_id: clienteId || null }) });
-  if (formaPago === 'credito' && clienteId) {
-    await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ cliente_id: clienteId, monto: total }) });
+    body: JSON.stringify({ bloqueria_id:getBID(), producto_id:sel.value, cantidad, precio_unit:precio, total, forma_pago:formaPago, cliente_id:clienteId||null }) });
+  if (formaPago==='credito' && clienteId) {
+    await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cliente_id:clienteId, monto:total }) });
   }
   showMsg('msg-venta');
   document.getElementById('v-cantidad').value = '';
@@ -586,15 +712,13 @@ async function cargarClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
   clientesData = await res.json();
   const tb = document.getElementById('tabla-clientes');
-  if(!clientesData.length) { tb.innerHTML = '<tr><td colspan="5">Sin clientes aún</td></tr>'; return; }
+  if(!clientesData.length) { tb.innerHTML='<tr><td colspan="5">Sin clientes aún</td></tr>'; return; }
   tb.innerHTML = clientesData.map(c => `
     <tr>
-      <td>${c.nombre}</td>
-      <td>${c.telefono||'-'}</td>
-      <td>$${c.limite_credito||0}</td>
-      <td class="${c.deuda_actual > 0 ? 'deuda':'sin-deuda'}">$${c.deuda_actual||0}</td>
+      <td>${c.nombre}</td><td>${c.telefono||'-'}</td><td>$${c.limite_credito||0}</td>
+      <td class="${c.deuda_actual>0?'deuda':'sin-deuda'}">$${c.deuda_actual||0}</td>
       <td class="acciones">
-        ${c.deuda_actual > 0 ? `<button style="background:#e67e22;font-size:12px;padding:4px 10px;border-radius:4px" onclick="abonarDeuda('${c.id}', ${c.deuda_actual})">💰 Abono</button>` : ''}
+        ${c.deuda_actual>0 ? `<button style="background:#e67e22;font-size:12px;padding:4px 10px;border-radius:4px" onclick="abonarDeuda('${c.id}',${c.deuda_actual})">💰 Abono</button>` : ''}
         <button class="btn-editar" onclick='pedirPinParaAccion("editarCliente", ${JSON.stringify(c)})'>✏️ Editar</button>
         <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarCliente', {id:'${c.id}'})">🗑 Eliminar</button>
       </td>
@@ -602,15 +726,13 @@ async function cargarClientes() {
 }
 async function agregarCliente() {
   await fetch(`${API}/clientes`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('c-nombre').value,
-      telefono:document.getElementById('c-telefono').value, limite_credito:document.getElementById('c-limite').value, deuda_actual:0 }) });
+    body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('c-nombre').value, telefono:document.getElementById('c-telefono').value, limite_credito:document.getElementById('c-limite').value, deuda_actual:0 }) });
   showMsg('msg-cliente'); cargarClientes();
 }
 async function abonarDeuda(clienteId, deudaActual) {
   const monto = parseFloat(prompt(`Deuda actual: $${deudaActual}\n¿Cuánto abona el cliente?`));
-  if (!monto || monto <= 0) return;
-  await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ cliente_id: clienteId, monto: -monto }) });
+  if (!monto || monto<=0) return;
+  await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cliente_id:clienteId, monto:-monto }) });
   cargarClientes();
 }
 
@@ -619,12 +741,10 @@ async function cargarGastos() {
   const res = await fetch(`${API}/gastos/${getBID()}`);
   const data = await res.json();
   const tb = document.getElementById('tabla-gastos');
-  if(!data.length) { tb.innerHTML = '<tr><td colspan="5">Sin gastos aún</td></tr>'; return; }
+  if(!data.length) { tb.innerHTML='<tr><td colspan="5">Sin gastos aún</td></tr>'; return; }
   tb.innerHTML = data.map(g => `
     <tr>
-      <td>${g.concepto}</td>
-      <td>$${g.monto}</td>
-      <td>${g.nota||'-'}</td>
+      <td>${g.concepto}</td><td>$${g.monto}</td><td>${g.nota||'-'}</td>
       <td>${new Date(g.fecha).toLocaleDateString()}</td>
       <td class="acciones">
         <button class="btn-editar" onclick='pedirPinParaAccion("editarGasto", ${JSON.stringify(g)})'>✏️ Editar</button>
@@ -634,8 +754,7 @@ async function cargarGastos() {
 }
 async function agregarGasto() {
   await fetch(`${API}/gastos`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:getBID(), concepto:document.getElementById('g-concepto').value,
-      monto:document.getElementById('g-monto').value, nota:document.getElementById('g-nota').value }) });
+    body: JSON.stringify({ bloqueria_id:getBID(), concepto:document.getElementById('g-concepto').value, monto:document.getElementById('g-monto').value, nota:document.getElementById('g-nota').value }) });
   showMsg('msg-gasto'); cargarGastos();
 }
 </script>
