@@ -60,6 +60,17 @@ if (tabla !== 'auth' && parts[1] === 'eliminar' && req.method === 'POST') {
   return res.json({ ok: true });
 }
 
+// ---- EDITAR REGISTRO ----
+if (tabla !== 'auth' && parts[1] === 'editar' && req.method === 'POST') {
+  const { id, ...campos } = req.body;
+  const { error } = await supabase
+    .from(tabla)
+    .update(campos)
+    .eq('id', id);
+  if (error) return res.status(400).json({ error });
+  return res.json({ ok: true });
+}
+
   // ---- ABONO / DEUDA DE CLIENTE ----
   if (tabla === 'clientes' && parts[1] === 'deuda' && req.method === 'POST') {
     const { cliente_id, monto } = req.body;

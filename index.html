@@ -42,34 +42,55 @@
     .precio-bs { color: #e67e22; font-weight: bold; }
     .btn-eliminar { background: #e74c3c; font-size: 12px; padding: 4px 10px; border-radius: 4px; }
     .btn-eliminar:hover { background: #c0392b; }
+    .btn-editar { background: #3498db; font-size: 12px; padding: 4px 10px; border-radius: 4px; margin-right: 4px; }
+    .btn-editar:hover { background: #2980b9; }
+    .acciones { display: flex; gap: 4px; flex-wrap: wrap; }
 
     /* MODAL PIN */
     .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
     .modal-overlay.active { display: flex; }
-    .modal-box { background: white; padding: 32px; border-radius: 14px; width: 320px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center; }
+    .modal-box { background: white; padding: 32px; border-radius: 14px; width: 340px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center; }
     .modal-box h3 { font-size: 18px; margin-bottom: 8px; color: #333; }
     .modal-box p { font-size: 13px; color: #888; margin-bottom: 20px; }
-    .modal-box input { width: 100%; padding: 12px; font-size: 20px; text-align: center; letter-spacing: 8px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 12px; }
-    .modal-box input:focus { border-color: #1D9E75; outline: none; }
+    .modal-pin-input { width: 100%; padding: 12px; font-size: 24px; text-align: center; letter-spacing: 8px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 12px; }
+    .modal-pin-input:focus { border-color: #1D9E75; outline: none; }
     .modal-error { color: #c0392b; font-size: 13px; margin-bottom: 10px; display: none; }
     .modal-btns { display: flex; gap: 10px; }
     .modal-btns button { flex: 1; }
     .btn-cancelar { background: #95a5a6; }
     .btn-cancelar:hover { background: #7f8c8d; }
+
+    /* MODAL EDITAR */
+    .modal-edit-box { background: white; padding: 28px; border-radius: 14px; width: 420px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: left; max-height: 90vh; overflow-y: auto; }
+    .modal-edit-box h3 { font-size: 18px; margin-bottom: 16px; color: #333; }
+    .modal-edit-box input, .modal-edit-box select { margin-bottom: 10px; }
+    .modal-edit-box label { font-size: 12px; color: #666; margin-bottom: 4px; display: block; }
   </style>
 </head>
 <body>
 
-<!-- MODAL PIN ADMIN -->
+<!-- MODAL PIN -->
 <div class="modal-overlay" id="modal-pin">
   <div class="modal-box">
     <h3>🔐 Acción restringida</h3>
     <p>Ingresa el PIN de administrador para continuar</p>
-    <input type="password" id="pin-input" placeholder="••••" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+    <input type="password" class="modal-pin-input" id="pin-input" placeholder="••••" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter') confirmarPin()" />
     <div class="modal-error" id="pin-error">PIN incorrecto, intenta de nuevo</div>
     <div class="modal-btns">
       <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
       <button onclick="confirmarPin()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-edit-box">
+    <h3 id="edit-titulo">✏️ Editar registro</h3>
+    <div id="edit-campos"></div>
+    <div class="modal-btns" style="margin-top:10px;">
+      <button class="btn-cancelar" onclick="cerrarModalEditar()">Cancelar</button>
+      <button onclick="guardarEdicion()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -117,7 +138,7 @@
         <div class="card">
           <h2>Stock actual</h2>
           <table>
-            <thead><tr><th>Nombre</th><th>Precio USD</th><th>Precio Bs ($)</th><th>Stock</th><th>Mínimo</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Precio USD</th><th>Precio Bs ($)</th><th>Stock</th><th>Mínimo</th><th>Acciones</th></tr></thead>
             <tbody id="tabla-productos"><tr><td colspan="6">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -135,9 +156,7 @@
             <option value="credito">A crédito</option>
             <option value="pago_movil">Pago móvil</option>
           </select>
-          <select id="v-cliente">
-            <option value="">-- Cliente (opcional) --</option>
-          </select>
+          <select id="v-cliente"><option value="">-- Cliente (opcional) --</option></select>
           <div id="resumen-venta" style="background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:10px;display:none;">
             <span id="resumen-texto" style="font-size:14px;color:#333;"></span>
           </div>
@@ -147,7 +166,7 @@
         <div class="card">
           <h2>Historial de ventas</h2>
           <table>
-            <thead><tr><th>Producto</th><th>Cliente</th><th>Cantidad</th><th>Total USD</th><th>Total Bs ($)</th><th>Pago</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Producto</th><th>Cliente</th><th>Cantidad</th><th>Total USD</th><th>Total Bs ($)</th><th>Pago</th><th>Fecha</th><th>Acciones</th></tr></thead>
             <tbody id="tabla-ventas"><tr><td colspan="8">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -166,7 +185,7 @@
         <div class="card">
           <h2>Lista de clientes</h2>
           <table>
-            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Límite crédito</th><th>Deuda actual</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Límite</th><th>Deuda</th><th>Acciones</th></tr></thead>
             <tbody id="tabla-clientes"><tr><td colspan="5">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -192,7 +211,7 @@
         <div class="card">
           <h2>Historial de gastos</h2>
           <table>
-            <thead><tr><th>Concepto</th><th>Monto</th><th>Nota</th><th>Fecha</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Concepto</th><th>Monto</th><th>Nota</th><th>Fecha</th><th>Acciones</th></tr></thead>
             <tbody id="tabla-gastos"><tr><td colspan="5">Cargando...</td></tr></tbody>
           </table>
         </div>
@@ -206,6 +225,9 @@
 const API = 'https://bloqueriastys.vercel.app/api';
 let SESSION = null;
 let productosData = [];
+let clientesData = [];
+let accionPendiente = null;
+let editPendiente = null; // { tabla, id, datos }
 
 // ── SESIÓN ───────────────────────────────────────────────
 function cargarSesion() {
@@ -270,9 +292,7 @@ function showMsg(id) {
   setTimeout(() => el.style.display = 'none', 3000);
 }
 
-// ── MODAL PIN ADMIN ──────────────────────────────────────
-let accionPendiente = null;
-
+// ── MODAL PIN ────────────────────────────────────────────
 function pedirPinParaAccion(accion, params) {
   accionPendiente = { accion, params };
   document.getElementById('pin-input').value = '';
@@ -280,54 +300,165 @@ function pedirPinParaAccion(accion, params) {
   document.getElementById('modal-pin').classList.add('active');
   setTimeout(() => document.getElementById('pin-input').focus(), 100);
 }
-
 function cerrarModal() {
   document.getElementById('modal-pin').classList.remove('active');
   accionPendiente = null;
 }
-
 async function confirmarPin() {
   const pin = document.getElementById('pin-input').value;
   if (!pin) return;
-
   const res = await fetch(`${API}/admin/verificar-pin`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ bloqueria_id: getBID(), pin })
   });
   const data = await res.json();
-
   if (!data.ok) {
     document.getElementById('pin-error').style.display = 'block';
     document.getElementById('pin-input').value = '';
     return;
   }
-
-  // Guardar acción ANTES de cerrar el modal
   const accion = accionPendiente.accion;
   const params = accionPendiente.params;
-
-  // Cerrar modal
   document.getElementById('modal-pin').classList.remove('active');
   accionPendiente = null;
 
-  // Ejecutar la acción
   if (accion === 'guardarProducto') await agregarProducto();
   if (accion === 'eliminarProducto') await eliminarRegistro('productos', params.id, cargarProductos);
   if (accion === 'eliminarVenta') await eliminarRegistro('ventas', params.id, cargarVentas);
   if (accion === 'eliminarCliente') await eliminarRegistro('clientes', params.id, cargarClientes);
   if (accion === 'eliminarGasto') await eliminarRegistro('gastos', params.id, cargarGastos);
+  if (accion === 'editarProducto') abrirModalEditar('producto', params);
+  if (accion === 'editarVenta') abrirModalEditar('venta', params);
+  if (accion === 'editarCliente') abrirModalEditar('cliente', params);
+  if (accion === 'editarGasto') abrirModalEditar('gasto', params);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarModal(); cerrarModalEditar(); } });
+
+// ── MODAL EDITAR ─────────────────────────────────────────
+function abrirModalEditar(tipo, datos) {
+  editPendiente = { tipo, datos };
+  const campos = document.getElementById('edit-campos');
+  const titulo = document.getElementById('edit-titulo');
+
+  if (tipo === 'producto') {
+    titulo.textContent = '✏️ Editar producto';
+    campos.innerHTML = `
+      <label>Nombre</label><input id="e-nombre" value="${datos.nombre}" />
+      <label>Precio USD</label><input type="number" id="e-precio" step="0.01" value="${datos.precio}" />
+      <label>Precio Bs ($)</label><input type="number" id="e-precio-bs" step="0.01" value="${datos.precio_bs || 0}" />
+      <label>Stock</label><input type="number" id="e-stock" value="${datos.stock}" />
+      <label>Stock mínimo</label><input type="number" id="e-minimo" value="${datos.stock_minimo}" />`;
+  }
+  if (tipo === 'venta') {
+    titulo.textContent = '✏️ Editar venta';
+    const optsProductos = productosData.map(p => `<option value="${p.id}" ${p.id===datos.producto_id?'selected':''}>${p.nombre}</option>`).join('');
+    const optsClientes = [
+      `<option value="">-- Sin cliente --</option>`,
+      ...clientesData.map(c => `<option value="${c.id}" ${c.id===datos.cliente_id?'selected':''}>${c.nombre}</option>`)
+    ].join('');
+    campos.innerHTML = `
+      <label>Producto</label><select id="e-producto">${optsProductos}</select>
+      <label>Cantidad</label><input type="number" id="e-cantidad" value="${datos.cantidad}" />
+      <label>Forma de pago</label>
+      <select id="e-pago">
+        <option value="efectivo" ${datos.forma_pago==='efectivo'?'selected':''}>Efectivo USD</option>
+        <option value="transferencia" ${datos.forma_pago==='transferencia'?'selected':''}>Transferencia Bs</option>
+        <option value="credito" ${datos.forma_pago==='credito'?'selected':''}>A crédito</option>
+        <option value="pago_movil" ${datos.forma_pago==='pago_movil'?'selected':''}>Pago móvil</option>
+      </select>
+      <label>Cliente</label><select id="e-cliente">${optsClientes}</select>
+      <label>Total USD</label><input type="number" id="e-total" step="0.01" value="${datos.total}" />`;
+  }
+  if (tipo === 'cliente') {
+    titulo.textContent = '✏️ Editar cliente';
+    campos.innerHTML = `
+      <label>Nombre</label><input id="e-cnombre" value="${datos.nombre}" />
+      <label>Teléfono</label><input id="e-ctelefono" value="${datos.telefono || ''}" />
+      <label>Límite de crédito ($)</label><input type="number" id="e-climit" step="0.01" value="${datos.limite_credito || 0}" />
+      <label>Deuda actual ($)</label><input type="number" id="e-cdeuda" step="0.01" value="${datos.deuda_actual || 0}" />`;
+  }
+  if (tipo === 'gasto') {
+    titulo.textContent = '✏️ Editar gasto';
+    campos.innerHTML = `
+      <label>Concepto</label>
+      <select id="e-gconcepto">
+        <option value="Materia prima" ${datos.concepto==='Materia prima'?'selected':''}>Materia prima</option>
+        <option value="Mano de obra" ${datos.concepto==='Mano de obra'?'selected':''}>Mano de obra</option>
+        <option value="Servicios" ${datos.concepto==='Servicios'?'selected':''}>Servicios (luz/agua)</option>
+        <option value="Mantenimiento" ${datos.concepto==='Mantenimiento'?'selected':''}>Mantenimiento</option>
+        <option value="Transporte" ${datos.concepto==='Transporte'?'selected':''}>Transporte</option>
+        <option value="Otro" ${datos.concepto==='Otro'?'selected':''}>Otro</option>
+      </select>
+      <label>Monto ($)</label><input type="number" id="e-gmonto" step="0.01" value="${datos.monto}" />
+      <label>Nota</label><input id="e-gnota" value="${datos.nota || ''}" />`;
+  }
+
+  document.getElementById('modal-editar').classList.add('active');
 }
 
-// Cerrar modal con Escape
-document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModal(); });
+function cerrarModalEditar() {
+  document.getElementById('modal-editar').classList.remove('active');
+  editPendiente = null;
+}
+
+async function guardarEdicion() {
+  const { tipo, datos } = editPendiente;
+  let body = {};
+
+  if (tipo === 'producto') {
+    body = {
+      nombre: document.getElementById('e-nombre').value,
+      precio: document.getElementById('e-precio').value,
+      precio_bs: document.getElementById('e-precio-bs').value,
+      stock: document.getElementById('e-stock').value,
+      stock_minimo: document.getElementById('e-minimo').value
+    };
+  }
+  if (tipo === 'venta') {
+    body = {
+      producto_id: document.getElementById('e-producto').value,
+      cantidad: document.getElementById('e-cantidad').value,
+      forma_pago: document.getElementById('e-pago').value,
+      cliente_id: document.getElementById('e-cliente').value || null,
+      total: document.getElementById('e-total').value
+    };
+  }
+  if (tipo === 'cliente') {
+    body = {
+      nombre: document.getElementById('e-cnombre').value,
+      telefono: document.getElementById('e-ctelefono').value,
+      limite_credito: document.getElementById('e-climit').value,
+      deuda_actual: document.getElementById('e-cdeuda').value
+    };
+  }
+  if (tipo === 'gasto') {
+    body = {
+      concepto: document.getElementById('e-gconcepto').value,
+      monto: document.getElementById('e-gmonto').value,
+      nota: document.getElementById('e-gnota').value
+    };
+  }
+
+  const tablaMap = { producto:'productos', venta:'ventas', cliente:'clientes', gasto:'gastos' };
+  const tabla = tablaMap[tipo];
+
+  await fetch(`${API}/${tabla}/editar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: datos.id, ...body })
+  });
+
+  cerrarModalEditar();
+  if (tipo === 'producto') cargarProductos();
+  if (tipo === 'venta') cargarVentas();
+  if (tipo === 'cliente') cargarClientes();
+  if (tipo === 'gasto') cargarGastos();
+}
 
 // ── ELIMINAR GENÉRICO ────────────────────────────────────
 async function eliminarRegistro(tabla, id, callback) {
   const res = await fetch(`${API}/${tabla}/eliminar`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id })
   });
   const data = await res.json();
   if (data.ok) callback();
@@ -346,28 +477,23 @@ async function cargarProductos() {
       <td class="precio-divisa">$${p.precio_bs || 0}</td>
       <td>${p.stock}</td>
       <td>${p.stock_minimo}</td>
-      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarProducto', {id:'${p.id}'})">🗑 Eliminar</button></td>
+      <td class="acciones">
+        <button class="btn-editar" onclick='pedirPinParaAccion("editarProducto", ${JSON.stringify(p)})'>✏️ Editar</button>
+        <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarProducto', {id:'${p.id}'})">🗑 Eliminar</button>
+      </td>
     </tr>`).join('');
 }
-
 async function agregarProducto() {
   await fetch(`${API}/productos`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      bloqueria_id: getBID(),
-      nombre: document.getElementById('p-nombre').value,
-      precio: document.getElementById('p-precio').value,
-      precio_bs: document.getElementById('p-precio-bs').value,
-      stock: document.getElementById('p-stock').value,
-      stock_minimo: document.getElementById('p-minimo').value
-    })
-  });
+    body: JSON.stringify({ bloqueria_id: getBID(), nombre: document.getElementById('p-nombre').value,
+      precio: document.getElementById('p-precio').value, precio_bs: document.getElementById('p-precio-bs').value,
+      stock: document.getElementById('p-stock').value, stock_minimo: document.getElementById('p-minimo').value }) });
   document.getElementById('p-nombre').value = '';
   document.getElementById('p-precio').value = '';
   document.getElementById('p-precio-bs').value = '';
   document.getElementById('p-stock').value = '';
   document.getElementById('p-minimo').value = '';
-  showMsg('msg-producto');
-  cargarProductos();
+  showMsg('msg-producto'); cargarProductos();
 }
 
 // ── VENTAS ───────────────────────────────────────────────
@@ -375,8 +501,7 @@ async function cargarSelectProductos() {
   const res = await fetch(`${API}/productos/${getBID()}`);
   productosData = await res.json();
   document.getElementById('v-producto').innerHTML = productosData.map(p =>
-    `<option value="${p.id}" data-precio="${p.precio}" data-precio-bs="${p.precio_bs || 0}">${p.nombre}</option>`
-  ).join('');
+    `<option value="${p.id}" data-precio="${p.precio}" data-precio-bs="${p.precio_bs||0}">${p.nombre}</option>`).join('');
   actualizarPrecioVenta();
 }
 function actualizarPrecioVenta() { calcularTotal(); }
@@ -398,22 +523,18 @@ function calcularTotal() {
     } else {
       texto.innerHTML = `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
     }
-  } else {
-    document.getElementById('resumen-venta').style.display = 'none';
-  }
+  } else { document.getElementById('resumen-venta').style.display = 'none'; }
 }
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
-  const data = await res.json();
+  clientesData = await res.json();
   document.getElementById('v-cliente').innerHTML =
     '<option value="">-- Cliente (opcional) --</option>' +
-    data.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    clientesData.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 }
 async function cargarVentas() {
   const [resV, resP, resC] = await Promise.all([
-    fetch(`${API}/ventas/${getBID()}`),
-    fetch(`${API}/productos/${getBID()}`),
-    fetch(`${API}/clientes/${getBID()}`)
+    fetch(`${API}/ventas/${getBID()}`), fetch(`${API}/productos/${getBID()}`), fetch(`${API}/clientes/${getBID()}`)
   ]);
   const ventas = await resV.json();
   const productos = await resP.json();
@@ -427,13 +548,16 @@ async function cargarVentas() {
     const totalBs = prod ? (prod.precio_bs * v.cantidad).toFixed(2) : '-';
     return `<tr>
       <td>${prod ? prod.nombre : '-'}</td>
-      <td>${v.cliente_id ? (mC[v.cliente_id] || '-') : '-'}</td>
+      <td>${v.cliente_id ? (mC[v.cliente_id]||'-') : '-'}</td>
       <td>${v.cantidad}</td>
       <td class="precio-divisa">$${v.total}</td>
       <td class="precio-bs">$${totalBs}</td>
       <td>${v.forma_pago}</td>
       <td>${new Date(v.fecha).toLocaleDateString()}</td>
-      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarVenta', {id:'${v.id}'})">🗑 Eliminar</button></td>
+      <td class="acciones">
+        <button class="btn-editar" onclick='pedirPinParaAccion("editarVenta", ${JSON.stringify(v)})'>✏️ Editar</button>
+        <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarVenta', {id:'${v.id}'})">🗑 Eliminar</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -446,8 +570,7 @@ async function registrarVenta() {
   const total = (precio * cantidad).toFixed(2);
   if (formaPago === 'credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
   await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id: getBID(), producto_id: sel.value, cantidad, precio_unit: precio, total, forma_pago: formaPago, cliente_id: clienteId || null })
-  });
+    body: JSON.stringify({ bloqueria_id: getBID(), producto_id: sel.value, cantidad, precio_unit: precio, total, forma_pago: formaPago, cliente_id: clienteId || null }) });
   if (formaPago === 'credito' && clienteId) {
     await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ cliente_id: clienteId, monto: total }) });
@@ -461,20 +584,18 @@ async function registrarVenta() {
 // ── CLIENTES ─────────────────────────────────────────────
 async function cargarClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
-  const data = await res.json();
+  clientesData = await res.json();
   const tb = document.getElementById('tabla-clientes');
-  if(!data.length) { tb.innerHTML = '<tr><td colspan="5">Sin clientes aún</td></tr>'; return; }
-  tb.innerHTML = data.map(c => `
+  if(!clientesData.length) { tb.innerHTML = '<tr><td colspan="5">Sin clientes aún</td></tr>'; return; }
+  tb.innerHTML = clientesData.map(c => `
     <tr>
       <td>${c.nombre}</td>
-      <td>${c.telefono}</td>
-      <td>$${c.limite_credito || 0}</td>
-      <td class="${c.deuda_actual > 0 ? 'deuda' : 'sin-deuda'}">$${c.deuda_actual || 0}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap;">
-        ${c.deuda_actual > 0
-          ? `<button style="background:#e67e22;font-size:12px;padding:4px 10px" onclick="abonarDeuda('${c.id}', ${c.deuda_actual})">Registrar abono</button>`
-          : '<span style="color:#1D9E75;font-size:12px">✅ Sin deuda</span>'
-        }
+      <td>${c.telefono||'-'}</td>
+      <td>$${c.limite_credito||0}</td>
+      <td class="${c.deuda_actual > 0 ? 'deuda':'sin-deuda'}">$${c.deuda_actual||0}</td>
+      <td class="acciones">
+        ${c.deuda_actual > 0 ? `<button style="background:#e67e22;font-size:12px;padding:4px 10px;border-radius:4px" onclick="abonarDeuda('${c.id}', ${c.deuda_actual})">💰 Abono</button>` : ''}
+        <button class="btn-editar" onclick='pedirPinParaAccion("editarCliente", ${JSON.stringify(c)})'>✏️ Editar</button>
         <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarCliente', {id:'${c.id}'})">🗑 Eliminar</button>
       </td>
     </tr>`).join('');
@@ -482,7 +603,7 @@ async function cargarClientes() {
 async function agregarCliente() {
   await fetch(`${API}/clientes`, { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ bloqueria_id:getBID(), nombre:document.getElementById('c-nombre').value,
-      telefono:document.getElementById('c-telefono').value, limite_credito:document.getElementById('c-limite').value, deuda_actual: 0 }) });
+      telefono:document.getElementById('c-telefono').value, limite_credito:document.getElementById('c-limite').value, deuda_actual:0 }) });
   showMsg('msg-cliente'); cargarClientes();
 }
 async function abonarDeuda(clienteId, deudaActual) {
@@ -505,7 +626,10 @@ async function cargarGastos() {
       <td>$${g.monto}</td>
       <td>${g.nota||'-'}</td>
       <td>${new Date(g.fecha).toLocaleDateString()}</td>
-      <td><button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarGasto', {id:'${g.id}'})">🗑 Eliminar</button></td>
+      <td class="acciones">
+        <button class="btn-editar" onclick='pedirPinParaAccion("editarGasto", ${JSON.stringify(g)})'>✏️ Editar</button>
+        <button class="btn-eliminar" onclick="pedirPinParaAccion('eliminarGasto', {id:'${g.id}'})">🗑 Eliminar</button>
+      </td>
     </tr>`).join('');
 }
 async function agregarGasto() {
