@@ -694,12 +694,22 @@ async function registrarVenta() {
   const cantidad = document.getElementById('v-cantidad').value;
   const formaPago = document.getElementById('v-pago').value;
   const clienteId = document.getElementById('v-cliente').value;
-  const total = (precio*cantidad).toFixed(2);
-  if (formaPago==='credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
-  await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
+  const total = (precio * cantidad).toFixed(2);
+  if (formaPago === 'credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
+
+  const res = await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ bloqueria_id:getBID(), producto_id:sel.value, cantidad, precio_unit:precio, total, forma_pago:formaPago, cliente_id:clienteId||null }) });
-  if (formaPago==='credito' && clienteId) {
-    await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cliente_id:clienteId, monto:total }) });
+  const data = await res.json();
+
+  // Si hay error de stock mostrarlo
+  if (!res.ok) {
+    alert(data.error || 'Error al registrar la venta');
+    return;
+  }
+
+  if (formaPago === 'credito' && clienteId) {
+    await fetch(`${API}/clientes/deuda`, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ cliente_id:clienteId, monto:total }) });
   }
   showMsg('msg-venta');
   document.getElementById('v-cantidad').value = '';
