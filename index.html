@@ -186,6 +186,17 @@
           <div id="resumen-venta" style="background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:10px;display:none;">
             <span id="resumen-texto" style="font-size:14px;color:#333;"></span>
           </div>
+          <div id="bloque-tasa" style="display:none; background:#fff8e1; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #e67e22;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <span style="font-size:13px; color:#666;">💱 Tasa del día (Bs por $1)</span>
+    <span id="tasa-fuente" style="font-size:11px; color:#aaa;">BCV</span>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <input type="number" id="tasa-valor" placeholder="Ej: 40.50" step="0.01" style="margin:0; flex:1;" oninput="calcularTotal()" />
+    <button onclick="cargarTasaBCV()" style="padding:8px 12px; font-size:12px; background:#e67e22; white-space:nowrap;">🔄 BCV</button>
+  </div>
+  <div id="tasa-resultado" style="margin-top:8px; font-size:14px; color:#333;"></div>
+</div>
           <button onclick="registrarVenta()">Registrar venta</button>
           <div class="msg" id="msg-venta">✅ Venta registrada</div>
         </div>
@@ -342,6 +353,7 @@ function entrarApp(session) {
   document.getElementById('app-screen').style.display = 'block';
   document.getElementById('user-label').textContent = session.nombre || session.username;
   cargarProductos();
+  cargarTasaAlInicio();
 }
 function cerrarSesion() {
   limpiarSesion();
@@ -690,23 +702,74 @@ async function cargarSelectProductos() {
 function actualizarPrecioVenta() { calcularTotal(); }
 function calcularTotal() {
   const sel = document.getElementById('v-producto');
-  const cantidad = parseFloat(document.getElementById('v-cantidad').value)||0;
+  const cantidad = parseFloat(document.getElementById('v-cantidad').value) || 0;
   const pago = document.getElementById('v-pago').value;
+  const monedaCreditoEl = document.getElementById('v-moneda-credito');
+  const monedaCredito = monedaCreditoEl ? monedaCreditoEl.value : 'usd';
   if (!sel.options[sel.selectedIndex]) return;
-  const precioUSD = parseFloat(sel.options[sel.selectedIndex].dataset.precio)||0;
-  const precioBs = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs)||0;
+  const precioUSD = parseFloat(sel.options[sel.selectedIndex].dataset.precio) || 0;
+  const precioBs = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs) || 0;
+  const esBs = pago === 'transferencia' || pago === 'pago_movil' || (pago === 'credito' && monedaCredito === 'bs');
+  const esTasa = pago === 'transferencia' || pago === 'pago_movil';
+
+  document.getElementById('bloque-tasa').style.display = esTasa ? 'block' : 'none';
+
   if (cantidad > 0) {
-    const totalUSD = (precioUSD*cantidad).toFixed(2);
-    const totalBs = (precioBs*cantidad).toFixed(2);
+    const totalUSD = (precioUSD * cantidad).toFixed(2);
+    const totalBs = Math.round(precioBs * cantidad);
     document.getElementById('resumen-venta').style.display = 'block';
-    document.getElementById('resumen-texto').innerHTML = pago==='transferencia'
-      ? `Total: <strong class="precio-bs">$${totalBs}</strong>`
-      : `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
-  } else { document.getElementById('resumen-venta').style.display = 'none'; }
+    if (esBs) {
+      document.getElementById('resumen-texto').innerHTML = `Total: <strong class="precio-bs">$${totalBs}</strong>`;
+    } else {
+      document.getElementById('resumen-texto').innerHTML = `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
+    }
+    if (esTasa) {
+      const tasa = parseFloat(document.getElementById('tasa-valor').value) || 0;
+      if (tasa > 0) {
+        const enBsConTasa = Math.round(parseFloat(totalUSD) * tasa);
+        document.getElementById('tasa-resultado').innerHTML =
+          `<strong>$${totalUSD}</strong> USD × <strong>${tasa}</strong> = <strong class="precio-bs">${enBsConTasa.toLocaleString()} Bs</strong>`;
+      } else {
+        document.getElementById('tasa-resultado').innerHTML = '<span style="color:#aaa;font-size:12px">Ingresa la tasa para ver el equivalente en Bs</span>';
+      }
+    }
+  } else {
+    document.getElementById('resumen-venta').style.display = 'none';
+    document.getElementById('tasa-resultado').innerHTML = '';
+  }
 }
 function toggleMonedaCredito() {
   const pago = document.getElementById('v-pago').value;
   document.getElementById('bloque-moneda-credito').style.display = pago === 'credito' ? 'block' : 'none';
+}
+async function cargarTasaBCV() {
+  const btn = document.querySelector('#bloque-tasa button');
+  btn.textContent = '⏳';
+  try {
+    const res = await fetch(`${API}/tasa`);
+    const data = await res.json();
+    if (data.tasa) {
+      document.getElementById('tasa-valor').value = data.tasa;
+      document.getElementById('tasa-fuente').textContent = 'BCV actualizado';
+      calcularTotal();
+    } else {
+      document.getElementById('tasa-fuente').textContent = 'No disponible';
+    }
+  } catch(e) {
+    document.getElementById('tasa-fuente').textContent = 'Error al obtener';
+  }
+  btn.textContent = '🔄 BCV';
+}
+
+async function cargarTasaAlInicio() {
+  try {
+    const res = await fetch(`${API}/tasa`);
+    const data = await res.json();
+    if (data.tasa) {
+      document.getElementById('tasa-valor').value = data.tasa;
+      document.getElementById('tasa-fuente').textContent = 'BCV actualizado';
+    }
+  } catch(e) {}
 }
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
