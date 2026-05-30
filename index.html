@@ -506,9 +506,14 @@ function recalcularTotalEdicion() {
   const prod = productosData.find(p => p.id === productoId);
   const precioUSD = prod ? parseFloat(prod.precio) : 0;
   const precioBs = prod ? parseFloat(prod.precio_bs || 0) : 0;
-  const total = formaPago === 'transferencia'
+
+  // transferencia y pago_movil = precio en bolívares
+  // efectivo y credito = precio en USD
+  const esBs = formaPago === 'transferencia' || formaPago === 'pago_movil';
+  const total = esBs
     ? (precioBs * cantidad).toFixed(2)
     : (precioUSD * cantidad).toFixed(2);
+
   document.getElementById('e-total').value = total;
 }
 async function confirmarPin() {
@@ -610,16 +615,19 @@ async function guardarEdicion() {
   const formaPago = document.getElementById('e-pago').value;
   // Buscar precio del producto seleccionado
   const prod = productosData.find(p => p.id === productoId);
-  const precioUnit = prod ? parseFloat(prod.precio) : 0;
-  const totalCalculado = (precioUnit * cantidad).toFixed(2);
-  body = {
-    producto_id: productoId,
-    cantidad: cantidad,
-    forma_pago: formaPago,
-    cliente_id: document.getElementById('e-cliente').value || null,
-    precio_unit: precioUnit,
-    total: totalCalculado
-  };
+  const esBs = formaPago === 'transferencia' || formaPago === 'pago_movil';
+const precioUSD = prod ? parseFloat(prod.precio) : 0;
+const precioBs = prod ? parseFloat(prod.precio_bs || 0) : 0;
+const precioUnit = esBs ? precioBs : precioUSD;
+const totalCalculado = (precioUnit * cantidad).toFixed(2);
+body = {
+  producto_id: productoId,
+  cantidad: cantidad,
+  forma_pago: formaPago,
+  cliente_id: document.getElementById('e-cliente').value || null,
+  precio_unit: precioUnit,
+  total: totalCalculado
+};
 }
   if (tipo === 'cliente') body = { nombre: document.getElementById('e-cnombre').value, telefono: document.getElementById('e-ctelefono').value, limite_credito: document.getElementById('e-climit').value, deuda_actual: document.getElementById('e-cdeuda').value };
   if (tipo === 'gasto') body = { concepto: document.getElementById('e-gconcepto').value, monto: document.getElementById('e-gmonto').value, nota: document.getElementById('e-gnota').value };
