@@ -26,6 +26,18 @@ module.exports = async (req, res) => {
     const usuario = data[0];
     return res.json({ ok: true, bloqueria_id: usuario.bloqueria_id, nombre: usuario.nombre, username: usuario.username });
   }
+  
+// ---- TASA BCV ----
+if (tabla === 'tasa' && req.method === 'GET') {
+  try {
+    const r = await fetch('https://pydolarve.org/api/v1/dollar?page=bcv');
+    const d = await r.json();
+    const tasa = d?.monitors?.usd?.price || null;
+    return res.json({ tasa });
+  } catch(e) {
+    return res.json({ tasa: null });
+  }
+}
 
   // ---- VERIFICAR PIN ADMIN ----
   if (tabla === 'admin' && parts[1] === 'verificar-pin' && req.method === 'POST') {
