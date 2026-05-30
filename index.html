@@ -723,7 +723,7 @@ async function cargarVentas() {
   if(!ventas.length) { tb.innerHTML='<tr><td colspan="8">Sin ventas aún</td></tr>'; return; }
   tb.innerHTML = ventas.map(v => {
     const prod = mP[v.producto_id];
-    const totalBs = prod ? (prod.precio_bs*v.cantidad).toFixed(2) : '-';
+    const totalBs = prod ? Math.round(prod.precio_bs * v.cantidad) : '-';
     return `<tr>
       <td>${prod?prod.nombre:'-'}</td><td>${v.cliente_id?(mC[v.cliente_id]||'-'):'-'}</td>
       <td>${v.cantidad}</td><td class="precio-divisa">$${v.total}</td><td class="precio-bs">$${totalBs}</td>
