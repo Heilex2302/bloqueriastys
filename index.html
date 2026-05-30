@@ -502,9 +502,14 @@ function cerrarModal() {
 function recalcularTotalEdicion() {
   const productoId = document.getElementById('e-producto').value;
   const cantidad = parseFloat(document.getElementById('e-cantidad').value) || 0;
+  const formaPago = document.getElementById('e-pago').value;
   const prod = productosData.find(p => p.id === productoId);
-  const precioUnit = prod ? parseFloat(prod.precio) : 0;
-  document.getElementById('e-total').value = (precioUnit * cantidad).toFixed(2);
+  const precioUSD = prod ? parseFloat(prod.precio) : 0;
+  const precioBs = prod ? parseFloat(prod.precio_bs || 0) : 0;
+  const total = formaPago === 'transferencia'
+    ? (precioBs * cantidad).toFixed(2)
+    : (precioUSD * cantidad).toFixed(2);
+  document.getElementById('e-total').value = total;
 }
 async function confirmarPin() {
   const pin = document.getElementById('pin-input').value;
@@ -557,7 +562,7 @@ function abrirModalEditar(tipo, datos) {
       <label>Producto</label><select id="e-producto">${optsP}</select>
       <label>Cantidad</label><input type='number' id='e-cantidad' value='${datos.cantidad}' oninput='recalcularTotalEdicion()' />
       <label>Forma de pago</label>
-      <select id="e-pago">
+      <select id='e-pago' onchange='recalcularTotalEdicion()'>
         <option value="efectivo" ${datos.forma_pago==='efectivo'?'selected':''}>Efectivo USD</option>
         <option value="transferencia" ${datos.forma_pago==='transferencia'?'selected':''}>Transferencia Bs</option>
         <option value="credito" ${datos.forma_pago==='credito'?'selected':''}>A crédito</option>
