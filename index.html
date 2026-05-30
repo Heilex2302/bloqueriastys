@@ -557,7 +557,7 @@ function abrirModalEditar(tipo, datos) {
         <option value="pago_movil" ${datos.forma_pago==='pago_movil'?'selected':''}>Pago móvil</option>
       </select>
       <label>Cliente</label><select id="e-cliente">${optsC}</select>
-      <label>Total USD</label><input type="number" id="e-total" step="0.01" value="${datos.total}" />`;
+      <label>Total USD (se calcula automático)</label><input type="number" id="e-total" step="0.01" value="${datos.total}" style="background:#f8f9fa;color:#888" readonly />
   }
   if (tipo === 'cliente') {
     titulo.textContent = '✏️ Editar cliente';
@@ -592,7 +592,23 @@ async function guardarEdicion() {
   const { tipo, datos } = editPendiente;
   let body = {};
   if (tipo === 'producto') body = { nombre: document.getElementById('e-nombre').value, precio: document.getElementById('e-precio').value, precio_bs: document.getElementById('e-precio-bs').value, stock: document.getElementById('e-stock').value, stock_minimo: document.getElementById('e-minimo').value };
-  if (tipo === 'venta') body = { producto_id: document.getElementById('e-producto').value, cantidad: document.getElementById('e-cantidad').value, forma_pago: document.getElementById('e-pago').value, cliente_id: document.getElementById('e-cliente').value||null, total: document.getElementById('e-total').value };
+  if (tipo === 'venta') {
+  const productoId = document.getElementById('e-producto').value;
+  const cantidad = parseFloat(document.getElementById('e-cantidad').value) || 0;
+  const formaPago = document.getElementById('e-pago').value;
+  // Buscar precio del producto seleccionado
+  const prod = productosData.find(p => p.id === productoId);
+  const precioUnit = prod ? parseFloat(prod.precio) : 0;
+  const totalCalculado = (precioUnit * cantidad).toFixed(2);
+  body = {
+    producto_id: productoId,
+    cantidad: cantidad,
+    forma_pago: formaPago,
+    cliente_id: document.getElementById('e-cliente').value || null,
+    precio_unit: precioUnit,
+    total: totalCalculado
+  };
+}
   if (tipo === 'cliente') body = { nombre: document.getElementById('e-cnombre').value, telefono: document.getElementById('e-ctelefono').value, limite_credito: document.getElementById('e-climit').value, deuda_actual: document.getElementById('e-cdeuda').value };
   if (tipo === 'gasto') body = { concepto: document.getElementById('e-gconcepto').value, monto: document.getElementById('e-gmonto').value, nota: document.getElementById('e-gnota').value };
   const tablaMap = { producto:'productos', venta:'ventas', cliente:'clientes', gasto:'gastos' };
