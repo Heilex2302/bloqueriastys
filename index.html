@@ -170,12 +170,18 @@
           <h2>Registrar venta</h2>
           <select id="v-producto" onchange="actualizarPrecioVenta()"><option>Cargando productos...</option></select>
           <input type="number" id="v-cantidad" placeholder="Cantidad" oninput="calcularTotal()" />
-          <select id="v-pago" onchange="calcularTotal()">
+          <select id="v-pago" onchange="calcularTotal(); toggleMonedaCredito()">
             <option value="efectivo">Efectivo USD</option>
             <option value="transferencia">Transferencia Bs</option>
             <option value="credito">A crédito</option>
             <option value="pago_movil">Pago móvil</option>
           </select>
+          <div id="bloque-moneda-credito" style="display:none;">
+            <select id="v-moneda-credito" onchange="calcularTotal()">
+              <option value="usd">Crédito en USD</option>
+              <option value="bs">Crédito en Bolívares</option>
+            </select>
+          </div>
           <select id="v-cliente"><option value="">-- Cliente (opcional) --</option></select>
           <div id="resumen-venta" style="background:#f8f9fa;padding:12px;border-radius:8px;margin-bottom:10px;display:none;">
             <span id="resumen-texto" style="font-size:14px;color:#333;"></span>
@@ -698,6 +704,10 @@ function calcularTotal() {
       : `Total: <strong class="precio-divisa">$${totalUSD}</strong> / <strong class="precio-bs">$${totalBs}</strong>`;
   } else { document.getElementById('resumen-venta').style.display = 'none'; }
 }
+function toggleMonedaCredito() {
+  const pago = document.getElementById('v-pago').value;
+  document.getElementById('bloque-moneda-credito').style.display = pago === 'credito' ? 'block' : 'none';
+}
 async function cargarSelectClientes() {
   const res = await fetch(`${API}/clientes/${getBID()}`);
   clientesData = await res.json();
@@ -730,11 +740,15 @@ async function registrarVenta() {
   const cantidad = document.getElementById('v-cantidad').value;
   const formaPago = document.getElementById('v-pago').value;
   const clienteId = document.getElementById('v-cliente').value;
-  const total = (precio * cantidad).toFixed(2);
+  const monedaCreditoEl = document.getElementById('v-moneda-credito');
+const monedaCredito = monedaCreditoEl ? monedaCreditoEl.value : 'usd';
+const esBs = formaPago === 'transferencia' || formaPago === 'pago_movil' || (formaPago === 'credito' && monedaCredito === 'bs');
+const precioBS = parseFloat(sel.options[sel.selectedIndex].dataset.precioBs) || 0;
+const total = esBs ? (precioBS * cantidad).toFixed(2) : (precio * cantidad).toFixed(2);
   if (formaPago === 'credito' && !clienteId) { alert('Selecciona un cliente para ventas a crédito'); return; }
 
   const res = await fetch(`${API}/ventas`, { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ bloqueria_id:getBID(), producto_id:sel.value, cantidad, precio_unit:precio, total, forma_pago:formaPago, cliente_id:clienteId||null }) });
+    body: JSON.stringify({ bloqueria_id:getBID(), producto_id:sel.value, cantidad, precio_unit:precio, total, forma_pago:formaPago, cliente_id:clienteId||null, moneda_credito:monedaCredito }) });
   const data = await res.json();
 
   // Si hay error de stock mostrarlo
