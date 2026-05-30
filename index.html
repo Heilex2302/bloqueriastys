@@ -499,6 +499,13 @@ function cerrarModal() {
   document.getElementById('modal-pin').classList.remove('active');
   accionPendiente = null;
 }
+function recalcularTotalEdicion() {
+  const productoId = document.getElementById('e-producto').value;
+  const cantidad = parseFloat(document.getElementById('e-cantidad').value) || 0;
+  const prod = productosData.find(p => p.id === productoId);
+  const precioUnit = prod ? parseFloat(prod.precio) : 0;
+  document.getElementById('e-total').value = (precioUnit * cantidad).toFixed(2);
+}
 async function confirmarPin() {
   const pin = document.getElementById('pin-input').value;
   if (!pin) return;
@@ -548,7 +555,7 @@ function abrirModalEditar(tipo, datos) {
     const optsC = [`<option value="">-- Sin cliente --</option>`, ...clientesData.map(c => `<option value="${c.id}" ${c.id===datos.cliente_id?'selected':''}>${c.nombre}</option>`)].join('');
     campos.innerHTML = `
       <label>Producto</label><select id="e-producto">${optsP}</select>
-      <label>Cantidad</label><input type="number" id="e-cantidad" value="${datos.cantidad}" />
+      <label>Cantidad</label><input type='number' id='e-cantidad' value='${datos.cantidad}' oninput='recalcularTotalEdicion()' />
       <label>Forma de pago</label>
       <select id="e-pago">
         <option value="efectivo" ${datos.forma_pago==='efectivo'?'selected':''}>Efectivo USD</option>
@@ -557,7 +564,7 @@ function abrirModalEditar(tipo, datos) {
         <option value="pago_movil" ${datos.forma_pago==='pago_movil'?'selected':''}>Pago móvil</option>
       </select>
       <label>Cliente</label><select id="e-cliente">${optsC}</select>
-      <label>Total USD (se calcula automático)</label><input type="number" id="e-total" step="0.01" value="${datos.total}" style="background:#f8f9fa;color:#888" readonly />
+      <label>Total USD (automático)</label><input type='number' id='e-total' step='0.01' value='${datos.total}' style='background:#f8f9fa;color:#888' readonly />`;
   }
   if (tipo === 'cliente') {
     titulo.textContent = '✏️ Editar cliente';
