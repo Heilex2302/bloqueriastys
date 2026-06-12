@@ -30,10 +30,16 @@ module.exports = async (req, res) => {
 // ---- TASA BCV ----
 if (tabla === 'tasa' && req.method === 'GET') {
   try {
-    const r = await fetch('https://pydolarve.org/api/v1/dollar?page=bcv');
+    const r = await fetch('https://ve.dolarapi.com/v1/dolares/oficial', { signal: AbortSignal.timeout(5000) });
     const d = await r.json();
-    const tasa = d?.monitors?.usd?.price || null;
-    return res.json({ tasa });
+    const tasa = d?.promedio || d?.precio || null;
+    if (tasa) return res.json({ tasa });
+
+    // Respaldo
+    const r2 = await fetch('https://pydolarve.org/api/v1/dollar?page=bcv', { signal: AbortSignal.timeout(5000) });
+    const d2 = await r2.json();
+    const tasa2 = d2?.monitors?.usd?.price || null;
+    return res.json({ tasa: tasa2 });
   } catch(e) {
     return res.json({ tasa: null });
   }
